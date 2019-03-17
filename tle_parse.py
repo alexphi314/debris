@@ -1,7 +1,10 @@
 import math
 import datetime as dt
 
-import bokeh
+import numpy as np
+from bokeh.plotting import figure, output_file, show, ColumnDataSource
+from bokeh.models import HoverTool, Legend
+from bokeh.layouts import gridplot
 
 class Object:
     """
@@ -48,6 +51,18 @@ class Object:
         epoch = '{}-{} {}:{}:{}.{}'.format(year, doy, int(hour), int(min), int(sec), str(frac)[2:6])
         self.epoch = dt.datetime.strptime(epoch, '%Y-%j %H:%M:%S.%f')
 
+        ## Define 1 orbit
+        #self.trajectory = #vector [x,y,z]
+
+    #def is_in_sphere(self,laser_loc, time, sphere_size):
+        """
+        Given the location of the laser satellite, the time, and sphere size, calculates if obj is in sphere
+        :param laser_loc: location of laser in ECI [x,y,z] [m]
+        :param time: time in UTC (datetime format)
+        :param sphere_size: radius of targeting sphere [m]
+        :return: bool In: obj is in sphere or not
+        """
+
 def parse_catalog():
     """
     Open the txt file with all TLEs in the sat cat, create an Object for each tle
@@ -67,3 +82,16 @@ def parse_catalog():
 if __name__ == "__main__":
     objects = parse_catalog()
 
+    altitudes = np.linspace(200e3,40e3,int(5e3)) #Range from 200 km to 40,000 km altitude
+    inclinations = np.linspace(0,math.pi,math.radians(5)) #Range from 0 to 180 deg inclin. in 5 deg steps
+
+
+    output_file('Plots/debris_distro.html')
+    p = figure(title='Distribution of Debris', x_axis_label='Trophy Level', y_axis_label='Number of Players')
+    p.vbar(x=list(player_count.keys()), top=list(player_count.values(), bottom=0, width=fidelity))
+
+    p2 = figure(title='Distribution of Player Trophies', x_axis_label='Trophy Level', y_axis_label='Number of Players')
+    p2.vbar(x=player_bin_count['Trophy'].tolist(), top=player_bin_count['Num'].tolist(), bottom=0, width=fidelity)
+
+    grid = gridplot([[p, p2]])
+    show(grid)
