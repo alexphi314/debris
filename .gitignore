@@ -1,2 +1,6 @@
 # Ignore IDE files
 *idea
+
+# Ignore plot and data files
+*Plots
+*.pickle

@@ -1,9 +1,12 @@
 import math
 import datetime as dt
+import argparse
+import pickle
+import os
 
 import numpy as np
 from bokeh.plotting import figure, output_file, show, ColumnDataSource
-from bokeh.models import HoverTool, Legend
+from bokeh.models import HoverTool, Legend, LogColorMapper, ColorBar, LogTicker
 from bokeh.layouts import gridplot
 
 class Object:
@@ -78,20 +81,85 @@ def parse_catalog():
 
     return objects
 
+MEW = 3986004.418e8 #m3/s2
+Re = 6378.37e3 # m
 
 if __name__ == "__main__":
-    objects = parse_catalog()
+    parser = argparse.ArgumentParser(description="Input arguments")
+    required = parser.add_argument_group('optional arguments')
+    required.add_argument("--parse_data", "-p", help="Re-parse sat cat file, rather than read stored data",
+                          required=False, action="store_true", default=False)
+    #optional = parser.add_argument_group('optional arguments')
+    args = vars(parser.parse_args())
 
-    altitudes = np.linspace(200e3,40e3,int(5e3)) #Range from 200 km to 40,000 km altitude
-    inclinations = np.linspace(0,math.pi,math.radians(5)) #Range from 0 to 180 deg inclin. in 5 deg steps
+    parse = args['parse_data']
+    savefile = 'satcat.pickle'
+    if parse or savefile not in os.listdir(os.getcwd()):
+        print('Parsing tle file...')
+        objects = parse_catalog()
+        with open(savefile,'wb') as f:
+            pickle.dump(objects,f)
+    else:
+        print('Loading pickle file')
+        with open(savefile,'rb') as f:
+            objects = pickle.load(f)
+
+    ## Check that Plots folder is made
+    if not 'Plots' in os.listdir(os.getcwd()):
+        os.makedirs(os.getcwd()+'/Plots')
+
+    lower_alt = 200
+    upper_alt = 40e3
+    alt_delim = 50
+    lower_i = 0
+    upper_i = 180
+    i_delim = 5
+
+    np_alt = np.linspace(lower_alt, upper_alt, int((upper_alt+alt_delim-lower_alt)/alt_delim))
+    altitudes = dict.fromkeys(list(np_alt),0)
+    np_inc = np.linspace(lower_i, upper_i, int((upper_i+i_delim-lower_i)/i_delim))
+    inclinations = dict.fromkeys(list(np_inc),0) #Range from 0 to 180 deg inclin. in 5 deg steps
+
+    z = np.zeros([len(np_inc),len(np_alt)])
+
+    for obj in objects:
+        inc = math.degrees(obj.i)
+        a = math.pow(MEW / math.pow(obj.n, 2), float(1 / 3)) #m
+        alt = (a - Re)/1000 #km
+
+        nearest_alt = int(alt//alt_delim)*alt_delim
+        nearest_inc = int(inc//i_delim)*i_delim
+
+        if nearest_alt >= lower_alt and nearest_alt <= upper_alt:
+            altitudes[nearest_alt]+= 1
+
+        if nearest_inc >= lower_i and nearest_inc <= upper_i:
+            inclinations[nearest_inc]+=1
+
+        ## We need both within range to generate the image array
+        if nearest_alt < lower_alt or nearest_alt > upper_alt \
+            or nearest_inc < lower_i or nearest_inc > upper_i:
+            continue
+
+        x_coord = np.where(np_alt == nearest_alt)[0][0]
+        y_coord = np.where(np_inc == nearest_inc)[0][0]
+
+        z[y_coord][x_coord]+= 1
 
 
-    output_file('Plots/debris_distro.html')
-    p = figure(title='Distribution of Debris', x_axis_label='Trophy Level', y_axis_label='Number of Players')
-    p.vbar(x=list(player_count.keys()), top=list(player_count.values(), bottom=0, width=fidelity))
+    cmap = LogColorMapper(palette='Viridis256',low=1,high=z.max())
+    output_file('Plots/tle_distro.html')
+    p = figure(title='Distribution of TLEs', x_axis_label='Altitude (km)', y_axis_label='Debris Amount')
+    p.vbar(x=list(altitudes.keys()), top=list(altitudes.values()), bottom=0, width=alt_delim)
 
-    p2 = figure(title='Distribution of Player Trophies', x_axis_label='Trophy Level', y_axis_label='Number of Players')
-    p2.vbar(x=player_bin_count['Trophy'].tolist(), top=player_bin_count['Num'].tolist(), bottom=0, width=fidelity)
+    p2 = figure(title='Distribution of TLEs', x_axis_label='Inclination (deg)', y_axis_label='Debris Amount')
+    p2.vbar(x=list(inclinations.keys()), top=list(inclinations.values()), bottom=0, width=i_delim)
 
-    grid = gridplot([[p, p2]])
+    p3 = figure(title='Distribution of TLEs',x_axis_label='Altitude (km)',y_axis_label='Inclination (deg)',
+                x_range=(lower_alt,upper_alt),y_range=(lower_i,upper_i),
+                tooltips=[("x","$x"),("y","$y"),("value","@image")])
+    p3.image(image=[z],x=lower_alt,y=lower_i,dw=upper_alt-lower_alt,dh=upper_i-lower_i,color_mapper=cmap)
+    color_bar = ColorBar(color_mapper=cmap,location=(0,0),ticker=LogTicker())
+    p3.add_layout(color_bar,'right')
+    grid = gridplot([[p, p2],[p3]])
     show(grid)
