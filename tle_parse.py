@@ -32,8 +32,9 @@ class Object:
         self.wp = math.radians(float(line2[34:42]))
         self.M = math.radians(float(line2[43:51]))
         self.n = float(line2[52:63]) * 2 * math.pi / 86400  # rad/s
+        self.a = math.pow(MEW / math.pow(self.n, 2), float(1 / 3))  # m
 
-        ## Define times
+        ## Calculate TLE epoch time
         if int(epoch_year) > int(dt.datetime.now().strftime('%y')):
             year = "19" + str(epoch_year)
         else:
@@ -54,17 +55,125 @@ class Object:
         epoch = '{}-{} {}:{}:{}.{}'.format(year, doy, int(hour), int(min), int(sec), str(frac)[2:6])
         self.epoch = dt.datetime.strptime(epoch, '%Y-%j %H:%M:%S.%f')
 
-        ## Define 1 orbit
-        #self.trajectory = #vector [x,y,z]
+        ## Calculate perigee time
+        timeSincePerigee = self.M/self.n
+        self.pt = self.epoch - dt.timedelta(seconds=timeSincePerigee)
+
+        ## Calculate h,P
+        self.h = math.sqrt(MEW*self.a*(1-math.pow(self.e,2)))
+        self.P = math.pow(self.h,2)/MEW
+
+        ## Define peri2eci rotation matrix
+        ##TODO: When updating raan and wp, this must be calculated in loop
+        self.Q_eci_p = peri2eci(self.O, self.i, self.wp)
+
+        intervalTime = 3*60
+        self.define_trajectory(intervalTime)
+
+    def define_trajectory(self, intervalTime):
+        """
+        Create a trajectory vector [[x,y,z],...] in ECI of satellite position throughout 1 orbit
+        :param int intervalTime: number of seconds between each position in trajectory vector
+        :return: Defne self.trajectory
+        """
+
+        T = 2*math.pi/self.n
+        endTime = int(T//intervalTime*intervalTime) #round T to nearest interval
+
+        times = range(0, endTime+intervalTime, intervalTime)
+        self.trajectory = np.zeros([len(times),3])
+        for i in range(0,len(times)):
+            ## Update M, E, and o (true anomaly)
+            time = times[i]
+            timeSincePerigee = time
+            M = self.n*timeSincePerigee
+            E = solve_kepler(M, self.e)
+            o = calc_o(E, self.e)
+
+            ## Calculate r_eci
+            r = self.P / (1 + self.e*math.cos(o))
+            r_peri = np.array([[r*math.cos(o)],[r*math.sin(o)],[0]])
+            r_eci = np.matmul(self.Q_eci_p, r_peri)
+
+            self.trajectory[i,:] = np.transpose(r_eci)
 
     #def is_in_sphere(self,laser_loc, time, sphere_size):
         """
         Given the location of the laser satellite, the time, and sphere size, calculates if obj is in sphere
-        :param laser_loc: location of laser in ECI [x,y,z] [m]
-        :param time: time in UTC (datetime format)
-        :param sphere_size: radius of targeting sphere [m]
-        :return: bool In: obj is in sphere or not
+        :param list laser_loc: location of laser in ECI [x,y,z] [m]
+        :param datetime time: time in UTC
+        :param float sphere_size: radius of targeting sphere [m]
+        :return: bool in: True if obj is in the sphere
         """
+def solve_kepler(M, e):
+    """
+    Solve Kepler's Equation for E
+    :param float M: mean anomaly [rad]
+    :param float e: eccentricity
+    :return: float E: eccentric anomaly [rad]
+    """
+
+    ## Define equations
+    f = lambda x: x - e * math.sin(x) - M
+    f_prime = lambda x: 1 - e * math.cos(x)
+
+    ## Pick guess
+    if M < math.pi:
+        E = M + e / 2
+    else:
+        E = M - e / 2
+
+    ## Loop until we are close to the root
+    ratio = f(E) / f_prime(E)
+    while abs(ratio) > 1e-8:
+        E -= ratio
+        ratio = f(E) / f_prime(E)
+
+    if E > 2.0 * math.pi:
+        two_pi = 2.0 * math.pi
+        rem = E % two_pi
+        E = rem
+
+    return E
+
+def calc_o(E, e):
+    """
+    Given eccentric anomaly and eccentricity, calculate true anomaly
+
+    :param float E: eccentric anomaly [rad]
+    :param float e: eccentricity
+    :return: float o: true anomaly [rad]
+    """
+
+    e_coef = math.sqrt((1 - e) / (1 + e))
+    o = 2.0 * math.atan(math.tan(E / 2.0) / e_coef)
+
+    if o < 0:
+        o += 2.0 * math.pi
+
+    return o
+
+def peri2eci(O, i, wp):
+    """
+    Given RAAN, inclination, argument of perigee, return O_eci_p
+    :param float O: RAAN [rad]
+    :param float i: inclination [rad]
+    :param float wp: argument of perigee [rad]
+    :return: array O_eci_p: DCM from perifocal frame to ECI frame
+    """
+
+    q11 = -math.sin(O) * math.cos(i) * math.sin(wp) + math.cos(O) * math.cos(wp)
+    q12 = -math.sin(O) * math.cos(i) * math.cos(wp) - math.cos(O) * math.sin(wp)
+    q13 = math.sin(O) * math.sin(i)
+    q21 = math.cos(O) * math.cos(i) * math.sin(wp) + math.sin(O) * math.cos(wp)
+    q22 = math.cos(O) * math.cos(i) * math.cos(wp) - math.sin(O) * math.sin(wp)
+    q23 = -math.cos(O) * math.sin(i)
+    q31 = math.sin(i) * math.sin(wp)
+    q32 = math.sin(i) * math.cos(wp)
+    q33 = math.cos(i)
+
+    Q = np.array([[q11, q12, q13], [q21, q22, q23], [q31, q32, q33]])
+    return Q
 
 def parse_catalog():
     """
@@ -124,8 +233,7 @@ if __name__ == "__main__":
 
     for obj in objects:
         inc = math.degrees(obj.i)
-        a = math.pow(MEW / math.pow(obj.n, 2), float(1 / 3)) #m
-        alt = (a - Re)/1000 #km
+        alt = (obj.a - Re)/1000 #km
 
         nearest_alt = int(alt//alt_delim)*alt_delim
         nearest_inc = int(inc//i_delim)*i_delim

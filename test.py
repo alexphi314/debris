@@ -2,7 +2,26 @@ import unittest
 import math
 import datetime as dt
 
+import numpy as np
+
 import tle_parse
+
+def assert_matrix_almost_equal(testCase,true,test):
+    ## Purpose: Assert that all elements of input matrices are equal
+    ##
+    ## Inputs:
+    ##   True array
+    ##   Test array
+
+    r,c = true.shape
+    r_test,c_test = test.shape
+
+    testCase.assertEqual(r,r_test)
+    testCase.assertEqual(c,c_test)
+
+    for i in range(0,r):
+        for j in range(0,c):
+            testCase.assertAlmostEqual(test[i][j],true[i][j],2)
 
 class Test_parse_tle(unittest.TestCase):
     def test_function(self):
@@ -30,6 +49,36 @@ class Test_parse_tle(unittest.TestCase):
         self.assertAlmostEqual(wp,obj.wp,5)
         self.assertAlmostEqual(M,obj.M,5)
         self.assertAlmostEqual(n,obj.n,5)
+
+class Test_solve_kepler(unittest.TestCase):
+    def test_function(self):
+        E = math.radians(85)
+        e = 0.8
+        M = 0.68657
+
+        E_out = tle_parse.solve_kepler(M,e)
+        self.assertAlmostEqual(E,E_out,2)
+
+class Test_calc_o(unittest.TestCase):
+    def test_function(self):
+        o = math.radians(85)
+        e = 0.8
+        E = 2*math.atan2(math.sqrt((1-e)/(1+e))*math.tan(o/2),1)
+
+        o_out = tle_parse.calc_o(E,e)
+        self.assertAlmostEqual(o,o_out,2)
+
+class Test_peri2geo(unittest.TestCase):
+    def test_function(self):
+        i = math.radians(30)
+        O = math.radians(40)
+        wp = math.radians(60)
+
+        Q = np.array([[-0.0991,0.89593,0.43301],[-0.94175,-0.22496,0.25],[0.32139,-0.38302,0.86603]])
+        Q = np.transpose(Q)
+        Q_out = tle_parse.peri2eci(O,i,wp)
+
+        assert_matrix_almost_equal(self,Q,Q_out)
 
 if __name__ == '__main__':
     unittest.main()
