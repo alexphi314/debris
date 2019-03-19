@@ -57,7 +57,7 @@ class Object:
 
         ## Calculate perigee time
         timeSincePerigee = self.M/self.n
-        self.pt = self.epoch - dt.timedelta(seconds=timeSincePerigee)
+        self._pt = self.epoch - dt.timedelta(seconds=timeSincePerigee)
 
         ## Calculate h,P
         self.h = math.sqrt(MEW*self.a*(1-math.pow(self.e,2)))
@@ -65,23 +65,22 @@ class Object:
 
         ## Define peri2eci rotation matrix
         ##TODO: When updating raan and wp, this must be calculated in loop
-        self.Q_eci_p = peri2eci(self.O, self.i, self.wp)
+        self._Q_eci_p = peri2eci(self.O, self.i, self.wp)
 
-        intervalTime = 3*60
-        self.define_trajectory(intervalTime)
+        self._intervalTime = 3*60
+        self.define_trajectory()
 
-    def define_trajectory(self, intervalTime):
+    def define_trajectory(self):
         """
         Create a trajectory vector [[x,y,z],...] in ECI of satellite position throughout 1 orbit
-        :param int intervalTime: number of seconds between each position in trajectory vector
         :return: Defne self.trajectory
         """
 
-        T = 2*math.pi/self.n
-        endTime = int(T//intervalTime*intervalTime) #round T to nearest interval
+        self._T = 2*math.pi/self.n
+        endTime = int(self._T//self._intervalTime*self._intervalTime) #round T to nearest interval
 
-        times = range(0, endTime+intervalTime, intervalTime)
-        self.trajectory = np.zeros([len(times),3])
+        times = range(0, endTime+self._intervalTime, self._intervalTime)
+        self._trajectory = np.zeros([len(times),3])
         for i in range(0,len(times)):
             ## Update M, E, and o (true anomaly)
             time = times[i]
@@ -93,11 +92,11 @@ class Object:
             ## Calculate r_eci
             r = self.P / (1 + self.e*math.cos(o))
             r_peri = np.array([[r*math.cos(o)],[r*math.sin(o)],[0]])
-            r_eci = np.matmul(self.Q_eci_p, r_peri)
+            r_eci = np.matmul(self._Q_eci_p, r_peri)
 
-            self.trajectory[i,:] = np.transpose(r_eci)
+            self._trajectory[i,:] = np.transpose(r_eci)
 
-    #def is_in_sphere(self,laser_loc, time, sphere_size):
+    def is_in_sphere(self,laser_loc, time, sphere_size):
         """
         Given the location of the laser satellite, the time, and sphere size, calculates if obj is in sphere
         :param list laser_loc: location of laser in ECI [x,y,z] [m]
@@ -105,6 +104,24 @@ class Object:
         :param float sphere_size: radius of targeting sphere [m]
         :return: bool in: True if obj is in the sphere
         """
+
+        ## Find object location at time
+        allTimeSincePerigee = abs((time - self._pt).total_seconds()) #absolute time since last perigee passage
+        orbitTimeSincePerigee = allTimeSincePerigee % self._T #time within 1 orbit since perigee passage
+        closestTimeIndex = int(orbitTimeSincePerigee//self._intervalTime)
+        closestPoint = self._trajectory[closestTimeIndex,:]
+
+        ## Compute Distance
+        dx = laser_loc[0] - closestPoint[0]
+        dy = laser_loc[1] - closestPoint[1]
+        dz = laser_loc[2] - closestPoint[2]
+        d = math.sqrt(math.pow(dx,2) + math.pow(dy,2) + math.pow(dz,2))
+
+        if d < sphere_size:
+            return True
+
+        return False
+
 def solve_kepler(M, e):
     """
     Solve Kepler's Equation for E
