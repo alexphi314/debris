@@ -23,32 +23,60 @@ def assert_matrix_almost_equal(testCase,true,test):
         for j in range(0,c):
             testCase.assertAlmostEqual(test[i][j],true[i][j],2)
 
-class Test_parse_tle(unittest.TestCase):
-    def test_function(self):
+class Test_object_init(unittest.TestCase):
+    sat_num = 5
+    epoch = '2019-75 17:13:8.09380'
+    epoch = dt.datetime.strptime(epoch, '%Y-%j %H:%M:%S.%f')
+    i = math.radians(34.243)
+    O = math.radians(201.2113)
+    e = 0.1845233
+    wp = math.radians(88.2396)
+    M = math.radians(292.7424)
+    n = 10.84775486 * 2 * math.pi / 86400
 
-        line1 = '1     5U 58002B   19075.71745479 -.00000160  00000-0 -17930-3 0  9998'
-        line2 = '2     5  34.2430 201.2113 1845233  88.2396 292.7424 10.84775486155534'
-        str = '{}\n{}'.format(line1,line2)
+    line1 = '1     5U 58002B   19075.71745479 -.00000160  00000-0 -17930-3 0  9998'
+    line2 = '2     5  34.2430 201.2113 1845233  88.2396 292.7424 10.84775486155534'
+    str = '{}\n{}'.format(line1, line2)
 
-        obj = tle_parse.Object(str)
-        sat_num = 5
-        epoch = '2019-75 17:13:8.09380'
-        epoch = dt.datetime.strptime(epoch,'%Y-%j %H:%M:%S.%f')
-        i = math.radians(34.243)
-        O = math.radians(201.2113)
-        e = 0.1845233
-        wp = math.radians(88.2396)
-        M = math.radians(292.7424)
-        n = 10.84775486*2*math.pi/86400
+    def test_function_tle_str(self):
+        obj = tle_parse.Object(self.str)
+        self.assertAlmostEqual(self.sat_num,obj.satNum,5)
+        self.assertEqual(self.epoch,obj.epoch)
+        self.assertAlmostEqual(self.i,obj.i,5)
+        self.assertAlmostEqual(self.O,obj.O,5)
+        self.assertAlmostEqual(self.e,obj.e,5)
+        self.assertAlmostEqual(self.wp,obj.wp,5)
+        self.assertAlmostEqual(self.M,obj.M,5)
+        self.assertAlmostEqual(self.n,obj.n,5)
 
-        self.assertAlmostEqual(sat_num,obj.sat_num,5)
-        self.assertEqual(epoch,obj.epoch,5)
-        self.assertAlmostEqual(i,obj.i,5)
-        self.assertAlmostEqual(O,obj.O,5)
-        self.assertAlmostEqual(e,obj.e,5)
-        self.assertAlmostEqual(wp,obj.wp,5)
-        self.assertAlmostEqual(M,obj.M,5)
-        self.assertAlmostEqual(n,obj.n,5)
+    def test_function_kepElems(self):
+        E = tle_parse.solve_kepler(self.M, self.e)
+        o = tle_parse.calc_o(E,self.e)
+        a = math.pow(tle_parse.MEW,1/3)/math.pow(self.n,2/3)
+        kepElems = {
+            'i': self.i,
+            'O': self.O,
+            'e': self.e,
+            'wp': self.wp,
+            'epoch': self.epoch,
+            'o': o,
+            'a': a,
+            'satNum': self.sat_num,
+            'deb': False
+        }
+        obj = tle_parse.Object(kepElems=kepElems)
+        tle_obj = tle_parse.Object(tle_str=self.str)
+
+        self.assertEqual(obj.satNum, tle_obj.satNum)
+        self.assertEqual(obj.epoch, tle_obj.epoch)
+        self.assertEqual(obj.i, tle_obj.i)
+        self.assertEqual(obj.O, tle_obj.O)
+        self.assertEqual(obj.e, tle_obj.e)
+        self.assertEqual(obj.wp, tle_obj.wp)
+        self.assertAlmostEqual(obj.M, tle_obj.M, 5)
+        self.assertAlmostEqual(obj.n, tle_obj.n, 5)
+        self.assertEqual(obj.a, tle_obj.a)
+        self.assertFalse(obj.deb)
 
 class Test_solve_kepler(unittest.TestCase):
     def test_function(self):
