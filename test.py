@@ -76,7 +76,8 @@ class Test_object_init(unittest.TestCase):
             'o': o,
             'a': a,
             'satNum': self.sat_num,
-            'deb': False
+            'deb': False,
+            'satName': 'VANGUARD 1'
         }
         obj = tle_parse.Object(kepElems=kepElems)
         tle_obj = tle_parse.Object(tle_str=self.str)
@@ -143,6 +144,89 @@ class Test_peri2eci(unittest.TestCase):
         Q_out = tle_parse.peri2eci(O,i,wp)
 
         assert_matrix_almost_equal(self,Q,Q_out)
+
+class Test_is_in_sphere(unittest.TestCase):
+    a = tle_parse.Re + 500e3
+    o = math.pi / 2
+    epoch = dt.datetime.now()
+    e = 0
+    kepElems = {
+        'i': math.radians(45),
+        'O': 0,
+        'e': e,
+        'wp': 0,
+        'epoch': epoch,
+        'o': math.pi / 2,
+        'a': a,
+        'satNum': 1,
+        'deb': False,
+        'satName': 'test'
+    }
+
+    testObj = tle_parse.Object(kepElems=kepElems)
+
+    n = math.sqrt(tle_parse.MEW / math.pow(a, 3))
+    E = 2 * math.atan(math.sqrt((1 - e) / (1 + e)) * math.tan(o / 2))
+    M = E - e * math.sin(E)
+    T = 2 * math.pi / n
+
+    if M > 2 * math.pi:
+        M = M % 2 * math.pi
+
+    while M < 0:
+        M += 2 * math.pi
+
+    timeSincePerigee = M / n
+    perigeeTime = epoch - dt.timedelta(seconds=timeSincePerigee)
+
+    def greater_than_pt(self):
+        testObj = self.testObj
+        perigeeTime = self.perigeeTime
+        T = self.T
+
+        realTime = perigeeTime + dt.timedelta(seconds=(3*T+T/2))
+        orbitTime = T/2
+        closestTime = orbitTime // 180 * 180
+        self.assertEqual(closestTime, 2700)
+        closestTimeIndex = int(closestTime / 180)
+        self.assertEqual(closestTimeIndex, 15)
+
+        position = testObj._trajectory[closestTimeIndex, :]
+        positionOut = testObj.get_eci_pos(realTime)
+
+        self.assertEqual(position[0],positionOut[0])
+        self.assertEqual(position[1], positionOut[1])
+        self.assertEqual(position[2], positionOut[2])
+
+        sphereSize = 100 #m
+        laserPos = position - 100
+        self.assertFalse(testObj.is_in_sphere(laserPos,realTime,sphereSize))
+
+        laserPos = position - 10
+        self.assertTrue(testObj.is_in_sphere(laserPos, realTime, sphereSize))
+
+    def less_than_pt(self):
+        testObj = self.testObj
+        perigeeTime = self.perigeeTime
+        T = self.T
+
+        realTime = perigeeTime + dt.timedelta(seconds=(-3 * T + T / 2))
+        orbitTime = T / 2
+        closestTime = orbitTime // 180 * 180
+        self.assertEqual(closestTime, 2700)
+        closestTimeIndex = int(closestTime / 180)
+        self.assertEqual(closestTimeIndex, 15)
+
+        position = testObj._trajectory[closestTimeIndex, :]
+        positionOut = testObj.get_eci_pos(realTime)
+
+        self.assertEqual(position[0], positionOut[0])
+        self.assertEqual(position[1], positionOut[1])
+        self.assertEqual(position[2], positionOut[2])
+
+        sphereSize = 100  # m
+        laserPos = position - 100
+        self.assertFalse(testObj.is_in_sphere(laserPos, realTime, sphereSize))
 
 if __name__ == '__main__':
     unittest.main()

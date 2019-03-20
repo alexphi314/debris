@@ -20,9 +20,10 @@ class Object:
         Initializer for object class, based on TLE
         You can supply a tle_str or a dict of Keplerian elements. If both are given, the tle string is used
         :param string tle_str: tle in string format, used to define object params
-        :param dict kepElems: dictionary with entries {'i','O','e','wp','o','a','epoch','satNum','deb'} corresponding
-                              to the keplerian orbit elements {Inclin [rad], RAAN [rad], eccent, arg of perigee [rad],
-                              true anomaly [rad], semi-major axis [m]} and epoch of the object
+        :param dict kepElems: dictionary with entries {'i','O','e','wp','o','a','epoch','satNum','deb', 'satName'}
+                              corresponding to the keplerian orbit elements {Inclin [rad], RAAN [rad], eccent,
+                              arg of perigee [rad], true anomaly [rad], semi-major axis [m]} and epoch of the object,
+                              satellite number, if it is debris [bool], and satellite name
         """
 
         if kepElems is not None and tle_str is None:
@@ -45,6 +46,7 @@ class Object:
             self.epoch = kepElems['epoch']
             self.satNum = kepElems['satNum']
             self.deb = kepElems['deb']
+            self.satName = kepElems['satName']
         else:
             lines = tle_str.split('\n')
             line0 = lines[0]
@@ -134,6 +136,25 @@ class Object:
 
             self._trajectory[i,:] = np.transpose(r_eci)
 
+    def get_eci_pos(self, time):
+        """
+        Return the object ECI position at given time
+        :param datetime time: reference time for position
+        :return: list pos: position in [x,y,z] format [m]
+        """
+        allTimeSincePerigee = (time - self._pt).total_seconds()  # absolute time since last perigee passage
+
+        pt = self._pt - dt.timedelta(seconds=self._T)
+        while allTimeSincePerigee < 0:
+            allTimeSincePerigee = (time - pt).total_seconds()
+            pt -= dt.timedelta(seconds=self._T)
+
+        orbitTimeSincePerigee = allTimeSincePerigee % self._T  # time within 1 orbit since perigee passage
+        closestTimeIndex = int(orbitTimeSincePerigee // self._intervalTime)
+        pos = self._trajectory[closestTimeIndex, :]
+
+        return pos
+
     def is_in_sphere(self,laser_loc, time, sphere_size):
         """
         Given the location of the laser satellite, the time, and sphere size, calculates if obj is in sphere
@@ -144,10 +165,7 @@ class Object:
         """
 
         ## Find object location at time
-        allTimeSincePerigee = abs((time - self._pt).total_seconds()) #absolute time since last perigee passage
-        orbitTimeSincePerigee = allTimeSincePerigee % self._T #time within 1 orbit since perigee passage
-        closestTimeIndex = int(orbitTimeSincePerigee//self._intervalTime)
-        closestPoint = self._trajectory[closestTimeIndex,:]
+        closestPoint = self.get_eci_pos(time)
 
         ## Compute Distance
         dx = laser_loc[0] - closestPoint[0]
@@ -287,8 +305,8 @@ if __name__ == "__main__":
         os.makedirs(os.getcwd()+'/Plots')
 
     lower_alt = 200
-    upper_alt = 40e3
-    alt_delim = 50
+    upper_alt = 1000
+    alt_delim = 5
     lower_i = 0
     upper_i = 180
     i_delim = 1
