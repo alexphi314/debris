@@ -4,7 +4,8 @@ import datetime as dt
 
 import numpy as np
 
-import tle_parse
+from astroUtils import Object
+import astroUtils
 
 def assert_matrix_almost_equal(testCase,true,test):
     ## Purpose: Assert that all elements of input matrices are equal
@@ -47,7 +48,7 @@ class Test_object_init(unittest.TestCase):
     P = 8326524.503
 
     def test_function_tle_str(self):
-        obj = tle_parse.Object(self.str)
+        obj = Object(self.str)
         self.assertAlmostEqual(self.sat_num,obj.satNum,5)
         self.assertEqual(self.epoch,obj.epoch)
         self.assertAlmostEqual(self.i,obj.i,5)
@@ -64,9 +65,9 @@ class Test_object_init(unittest.TestCase):
         self.assertEqual('VANGUARD 1',obj.satName)
 
     def test_function_kepElems(self):
-        E = tle_parse.solve_kepler(self.M, self.e)
-        o = tle_parse.calc_o(E,self.e)
-        a = math.pow(tle_parse.MEW,1/3)/math.pow(self.n,2/3)
+        E = astroUtils.solve_kepler(self.M, self.e)
+        o = astroUtils.calc_o(E,self.e)
+        a = math.pow(astroUtils.MEW,1/3)/math.pow(self.n,2/3)
         kepElems = {
             'i': self.i,
             'O': self.O,
@@ -79,8 +80,8 @@ class Test_object_init(unittest.TestCase):
             'deb': False,
             'satName': 'VANGUARD 1'
         }
-        obj = tle_parse.Object(kepElems=kepElems)
-        tle_obj = tle_parse.Object(tle_str=self.str)
+        obj = Object(kepElems=kepElems)
+        tle_obj = Object(tle_str=self.str)
 
         self.assertEqual(obj.satNum, tle_obj.satNum)
         self.assertEqual(obj.epoch, tle_obj.epoch)
@@ -98,21 +99,21 @@ class Test_object_init(unittest.TestCase):
         line1 = '1    47U 60007C   19078.62082020 -.00000047 +00000-0 +14842-4 0  9994'
         line2 = '2    47 066.6649 293.7858 0235398 276.6054 080.8306 14.42023965068951'
         str = '{}\n{}\n{}\n'.format(line0, line1, line2)
-        obj = tle_parse.Object(tle_str=str)
+        obj = Object(tle_str=str)
         self.assertTrue(obj.deb)
 
         line0 = '0 ECHO 1 DEB (METAL OBJ)'
         line1 = '1    53U 60009E   19078.45142974 -.00000010 +00000-0 +73023-3 0  9994'
         line2 = '2    53 047.2747 225.1950 0099831 173.3107 186.9037 12.17225727613029'
         str = '{}\n{}\n{}\n'.format(line0, line1, line2)
-        obj = tle_parse.Object(tle_str=str)
+        obj = Object(tle_str=str)
         self.assertTrue(obj.deb)
 
         line0 = '0 SOLRAD 1 (GREB)'
         line1 = '1    46U 60007B   19078.71696926 -.00000006 +00000-0 +21930-4 0  9990'
         line2 = '2    46 066.6907 197.8491 0203173 111.6021 250.6868 14.49212027073077'
         str = '{}\n{}\n{}\n'.format(line0, line1, line2)
-        obj = tle_parse.Object(tle_str=str)
+        obj = Object(tle_str=str)
         self.assertFalse(obj.deb)
 
 class Test_solve_kepler(unittest.TestCase):
@@ -121,7 +122,7 @@ class Test_solve_kepler(unittest.TestCase):
         e = 0.8
         M = 0.68657
 
-        E_out = tle_parse.solve_kepler(M,e)
+        E_out = astroUtils.solve_kepler(M,e)
         self.assertAlmostEqual(E,E_out,2)
 
 class Test_calc_o(unittest.TestCase):
@@ -130,7 +131,7 @@ class Test_calc_o(unittest.TestCase):
         e = 0.8
         E = 2*math.atan2(math.sqrt((1-e)/(1+e))*math.tan(o/2),1)
 
-        o_out = tle_parse.calc_o(E,e)
+        o_out = astroUtils.calc_o(E,e)
         self.assertAlmostEqual(o,o_out,2)
 
 class Test_peri2eci(unittest.TestCase):
@@ -141,12 +142,12 @@ class Test_peri2eci(unittest.TestCase):
 
         Q = np.array([[-0.0991,0.89593,0.43301],[-0.94175,-0.22496,0.25],[0.32139,-0.38302,0.86603]])
         Q = np.transpose(Q)
-        Q_out = tle_parse.peri2eci(O,i,wp)
+        Q_out = astroUtils.peri2eci(O,i,wp)
 
         assert_matrix_almost_equal(self,Q,Q_out)
 
 class Test_is_in_sphere(unittest.TestCase):
-    a = tle_parse.Re + 500e3
+    a = astroUtils.Re + 500e3
     o = math.pi / 2
     epoch = dt.datetime.now()
     e = 0
@@ -163,9 +164,9 @@ class Test_is_in_sphere(unittest.TestCase):
         'satName': 'test'
     }
 
-    testObj = tle_parse.Object(kepElems=kepElems)
+    testObj = Object(kepElems=kepElems)
 
-    n = math.sqrt(tle_parse.MEW / math.pow(a, 3))
+    n = math.sqrt(astroUtils.MEW / math.pow(a, 3))
     E = 2 * math.atan(math.sqrt((1 - e) / (1 + e)) * math.tan(o / 2))
     M = E - e * math.sin(E)
     T = 2 * math.pi / n
