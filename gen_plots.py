@@ -1,3 +1,5 @@
+## Generate fancy bokeh plots of debris distribution
+
 import math
 import argparse
 import pickle
