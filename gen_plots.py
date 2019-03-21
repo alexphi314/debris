@@ -16,11 +16,11 @@ if __name__ == "__main__":
     optional = parser.add_argument_group('optional arguments')
     optional.add_argument("--parse_data", "-p", help="Re-parse sat cat file, rather than read stored data",
                           required=False, action="store_true", default=False)
-    #optional = parser.add_argument_group('optional arguments')
+    #required = parser.add_argument_group('optional arguments')
     args = vars(parser.parse_args())
 
     parse = args['parse_data']
-    savefile = 'satcat3.pickle'
+    savefile = 'Data/satcat3.pickle'
     if parse or savefile not in os.listdir(os.getcwd()):
         print('Parsing tle file...')
         objects = parse_catalog(3)
@@ -34,6 +34,9 @@ if __name__ == "__main__":
     ## Check that Plots folder is made
     if not 'Plots' in os.listdir(os.getcwd()):
         os.makedirs(os.getcwd()+'/Plots')
+
+    if not 'Data' in os.listdir(os.getcwd()):
+        os.makedirs(os.getcwd()+'/Data')
 
     lower_alt = 200
     upper_alt = 1000

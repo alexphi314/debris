@@ -254,9 +254,9 @@ def parse_catalog(format):
     :return: objects list, each index is an Object in the sat cat
     """
     if format == 2:
-        file = 'satcat.txt'
+        file = 'Data/satcat.txt'
     else:
-        file = 'satcat_3le.txt'
+        file = 'Data/satcat_3le.txt'
 
     with open(file,'r') as f:
         lines = f.readlines()
