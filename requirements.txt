@@ -1,2 +1,4 @@
 # Required libraries to run these files
 bokeh==1.0.4
+numpy==1.16.2
+pandas==0.24.2

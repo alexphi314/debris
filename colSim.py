@@ -31,7 +31,7 @@ if __name__ == "__main__":
             obj = objects[i]
             h = (obj.a - Re) / 1e3  # km
 
-            if h > 2000:
+            if h > 2000 or not obj.deb:
                 nonLEO.append(i)
 
         for i in sorted(nonLEO, reverse=True):
@@ -56,6 +56,8 @@ if __name__ == "__main__":
     startTime = dt.datetime.now()
     duration = 3600 #s
     timeStep = 3*60
+
+    print('Running with {} pieces of debris'.format(len(objects)))
 
     positions = np.zeros([len(objects),3])
     for deltaT in range(0, duration+timeStep, timeStep):

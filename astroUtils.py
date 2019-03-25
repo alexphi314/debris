@@ -3,6 +3,7 @@ import datetime as dt
 import re
 
 import numpy as np
+import pandas as pd
 
 MEW = 3986004.418e8 #m3/s2
 Re = 6378.37e3 # m
@@ -102,35 +103,30 @@ class Object:
         ##TODO: When updating raan and wp, this must be calculated in loop
         self._Q_eci_p = peri2eci(self.O, self.i, self.wp)
 
-        self._intervalTime = 3*60
-        self.define_trajectory()
+        self._intervalTime = 3600 #s
+        self._epoch_pos = self.calc_trajectory_point(self.epoch)
 
-    def define_trajectory(self):
+    def calc_trajectory_point(self, time):
         """
         Create a trajectory vector [[x,y,z],...] in ECI of satellite position throughout 1 orbit
+        :param datetime time: time at which to return the point in ECI
         :return: Define self.trajectory
         """
 
-        self._T = 2*math.pi/self.n
-        endTime = int(self._T//self._intervalTime*self._intervalTime) #round T to nearest interval
+        timeSincePerigee = (time - self._pt).total_seconds()
 
-        times = range(0, endTime+self._intervalTime, self._intervalTime)
-        self._trajectory = np.zeros([len(times),3])
-        for i in range(0,len(times)):
-            ## TODO: Include change in RAAN and wp due to J2 perturbations
-            ## Update M, E, and o (true anomaly)
-            time = times[i]
-            timeSincePerigee = time
-            M = self.n*timeSincePerigee
-            E = solve_kepler(M, self.e)
-            o = calc_o(E, self.e)
+        ## TODO: Include change in RAAN and wp due to J2 perturbations
+        ## Update M, E, and o (true anomaly)
+        M = self.n*timeSincePerigee
+        E = solve_kepler(M, self.e)
+        o = calc_o(E, self.e)
 
-            ## Calculate r_eci
-            r = self.P / (1 + self.e*math.cos(o))
-            r_peri = np.array([[r*math.cos(o)],[r*math.sin(o)],[0]])
-            r_eci = np.matmul(self._Q_eci_p, r_peri)
+        ## Calculate r_eci
+        r = self.P / (1 + self.e*math.cos(o))
+        r_peri = np.array([[r*math.cos(o)],[r*math.sin(o)],[0]])
+        r_eci = np.matmul(self._Q_eci_p, r_peri)
 
-            self._trajectory[i,:] = np.transpose(r_eci)
+        return np.transpose(r_eci)
 
     def get_eci_pos(self, time):
         """
