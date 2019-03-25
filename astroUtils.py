@@ -4,6 +4,9 @@ import re
 
 import numpy as np
 import pandas as pd
+from sgp4.earth_gravity import wgs72
+from sgp4.io import twoline2rv
+import sys
 
 MEW = 3986004.418e8 #m3/s2
 Re = 6378.37e3 # m
@@ -99,53 +102,23 @@ class Object:
         self.h = math.sqrt(MEW*self.a*(1-math.pow(self.e,2)))
         self.P = math.pow(self.h,2)/MEW
 
-        ## Define peri2eci rotation matrix
-        ##TODO: When updating raan and wp, this must be calculated in loop
-        self._Q_eci_p = peri2eci(self.O, self.i, self.wp)
+        ## Initialize sgp4 object
+        ## TODO: Fix initialization for keplerian element init
+        self.sgpObject = twoline2rv(line1, line2, wgs72)
 
-        self._intervalTime = 3600 #s
-        self._epoch_pos = self.calc_trajectory_point(self.epoch)
-
-    def calc_trajectory_point(self, time):
-        """
-        Create a trajectory vector [[x,y,z],...] in ECI of satellite position throughout 1 orbit
-        :param datetime time: time at which to return the point in ECI
-        :return: Define self.trajectory
-        """
-
-        timeSincePerigee = (time - self._pt).total_seconds()
-
-        ## TODO: Include change in RAAN and wp due to J2 perturbations
-        ## Update M, E, and o (true anomaly)
-        M = self.n*timeSincePerigee
-        E = solve_kepler(M, self.e)
-        o = calc_o(E, self.e)
-
-        ## Calculate r_eci
-        r = self.P / (1 + self.e*math.cos(o))
-        r_peri = np.array([[r*math.cos(o)],[r*math.sin(o)],[0]])
-        r_eci = np.matmul(self._Q_eci_p, r_peri)
-
-        return np.transpose(r_eci)
-
-    def get_eci_pos(self, time):
+    def get_eci_state(self, time):
         """
         Return the object ECI position at given time
         :param datetime time: reference time for position
         :return: list pos: position in [x,y,z] format [m]
         """
-        allTimeSincePerigee = (time - self._pt).total_seconds()  # absolute time since last perigee passage
+        r_teme, v_teme = self.sgpObject.propagate(
+            time.year, time.month, time.day, time.hour, time.minute, time.second
+        )
 
-        pt = self._pt - dt.timedelta(seconds=self._T)
-        while allTimeSincePerigee < 0:
-            allTimeSincePerigee = (time - pt).total_seconds()
-            pt -= dt.timedelta(seconds=self._T)
 
-        orbitTimeSincePerigee = allTimeSincePerigee % self._T  # time within 1 orbit since perigee passage
-        closestTimeIndex = int(orbitTimeSincePerigee // self._intervalTime)
-        pos = self._trajectory[closestTimeIndex, :]
 
-        return pos
+        return r_eci, v_eci
 
     def is_in_sphere(self,laser_loc, time, sphere_size):
         """
@@ -157,7 +130,7 @@ class Object:
         """
 
         ## Find object location at time
-        closestPoint = self.get_eci_pos(time)
+        closestPoint, vPoint = self.get_eci_state(time)
 
         ## Compute Distance
         dx = laser_loc[0] - closestPoint[0]
