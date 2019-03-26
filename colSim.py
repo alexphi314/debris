@@ -5,11 +5,50 @@ import argparse
 import pickle
 import os
 import datetime as dt
+import threading
+import queue
 
 import numpy as np
 
-from astroUtils import parse_catalog, MEW, Re
+from astroUtils import parse_catalog, MEW, Re, PropagationError
 
+class Simulator:
+    def __init__(self, startTime, endTime, steps):
+        """
+        Init simulator manager class
+        :param datetime.datetime startTime: simulation start time
+        :param datetime.datetime endTime: simulation end time
+        :param int steps: number of trajectory steps
+        """
+        self.queue = queue.Queue()
+        self.startTime = startTime
+        self.endTime = endTime
+        self.steps = steps
+        self.badTrajs = []
+
+    def gen_trajectories(self):
+        """
+        For all objects in queue, generate trajectory
+        :return:
+        """
+        while True:
+            try:
+                obj = self.queue.get()
+                obj.generate_trajectory(self.startTime, self.endTime, self.steps)
+                self.message('Trajectory generated for {}'.format(obj.satName))
+            except PropagationError as e:
+                self.message('Got Propagation Error: {}'.format(e.msg))
+                self.badTrajs.append(obj)
+                pass
+            self.queue.task_done()
+
+    def message(self, msg):
+        """
+        Print message with thread name
+        :param msg: message to print
+        :return:
+        """
+        print('{}: {}'.format(threading.current_thread().name, msg))
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Input arguments")
@@ -52,35 +91,38 @@ if __name__ == "__main__":
         os.makedirs(os.getcwd() + '/Data')
 
     print('Starting sim...')
+    print('Running with {} pieces of debris'.format(len(objects)))
     objRad = 5 #m
     startTime = dt.datetime.now()
-    duration = 3600 #s
-    timeStep = 3*60
+    endTime = startTime + dt.timedelta(days=1)
+    steps = 24
 
-    print('Running with {} pieces of debris'.format(len(objects)))
+    simulator = Simulator(startTime, endTime, steps)
+    for i in range(1,9):
+        worker = threading.Thread(target=simulator.gen_trajectories,
+                                  name='trajectory-worker-{}'.format(i))
+        worker.setDaemon(True)
+        worker.start()
 
-    positions = np.zeros([len(objects),3])
-    for deltaT in range(0, duration+timeStep, timeStep):
-        time = startTime + dt.timedelta(seconds=deltaT)
-        print('')
-        print('Time is {}'.format(time.strftime('%Y-%m-%d %H:%M:%S')))
+    for obj in objects:
+        simulator.queue.put(obj)
 
-        ## Update Position
-        for i in range(0, len(objects)):
-            obj = objects[i]
-            positions[i,:] = obj.get_eci_pos(time)
+    simulator.queue.join()
+    print('Finished generating trajectories, with {} invalid'.format(
+        len(simulator.badTrajs))
+    )
 
-        ## Check for conjunction
-        for i in range(0, len(objects)):
-            obj = objects[i]
-            position = positions[i,:]
-
-            relPos = positions - position
-            relDist = np.linalg.norm(relPos, axis=1)
-            indices = np.where(relDist<5)
-            conjunctionJunction = relDist[indices]
-
-            if len(conjunctionJunction) > 1:
-                print('COLLISION DETECTED')
-                print('Between {}'.format(', '.join(objects[i].satName for i in indices[0])))
+    ## Check for conjunction
+    # for i in range(0, len(objects)):
+    #     obj = objects[i]
+    #     position = positions[i,:]
+    #
+    #     relPos = positions - position
+    #     relDist = np.linalg.norm(relPos, axis=1)
+    #     indices = np.where(relDist<5)
+    #     conjunctionJunction = relDist[indices]
+    #
+    #     if len(conjunctionJunction) > 1:
+    #         print('COLLISION DETECTED')
+    #         print('Between {}'.format(', '.join(objects[i].satName for i in indices[0])))
 

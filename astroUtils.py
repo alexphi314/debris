@@ -14,8 +14,6 @@ Re = 6378.37e3 # m
 class PropagationError(Exception):
     def __init__(self, msg):
         self.msg = msg
-        print(msg)
-
     pass
 
 class Object:
