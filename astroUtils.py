@@ -11,6 +11,13 @@ import sys
 MEW = 3986004.418e8 #m3/s2
 Re = 6378.37e3 # m
 
+class PropagationError(Exception):
+    def __init__(self, msg):
+        self.msg = msg
+        print(msg)
+
+    pass
+
 class Object:
     """
     Generic class for orbital object
@@ -94,7 +101,7 @@ class Object:
             epoch = '{}-{} {}:{}:{}.{}'.format(year, doy, int(hour), int(min), int(sec), str(frac)[2:6])
             self.epoch = dt.datetime.strptime(epoch, '%Y-%j %H:%M:%S.%f')
 
-        ## Calculate perigee time
+        ## Calculate last perigee time
         timeSincePerigee = self.M/self.n
         self._pt = self.epoch - dt.timedelta(seconds=timeSincePerigee)
 
@@ -106,25 +113,77 @@ class Object:
         ## TODO: Fix initialization for keplerian element init
         self.sgpObject = twoline2rv(line1, line2, wgs72)
 
-    def get_eci_state(self, time):
+    def get_teme_state(self, time):
         """
-        Return the object ECI position at given time
-        :param datetime time: reference time for position
-        :return: list pos: position in [x,y,z] format [m]
+        Return the object teme position at given time
+        :param datetime.datetime time: reference time for position
+        :return: list pos, list veloc: position in [x,y,z] format [m] and velocity in [vx, vy, vz] [m]
         """
         r_teme, v_teme = self.sgpObject.propagate(
             time.year, time.month, time.day, time.hour, time.minute, time.second
-        )
+        ) #km, km/s
+        r_teme = [x*1000 for x in r_teme] #m
+        v_teme = [v*1000 for v in v_teme] #m
 
+        if self.sgpObject.error != 0:
+            raise PropagationError(self.sgpObject.error_message)
 
+        return r_teme, v_teme
+
+    def get_eci_state(self, time):
+        ## TODO: Actually rotate from TEME to ECI
+        r_eci, v_eci = self.get_teme_state(time)
 
         return r_eci, v_eci
+
+    def generate_trajectory(self, startTime, endTime, steps):
+        """
+        Generate a trajectory between startTime and endTime in interval time steps
+        :param datetime.datetime startTime: start of trajectory (inclusive)
+        :param datetime.datetime endTime: end of trajectory (inclusive)
+        :param int steps: number of time steps between trajectory points
+        :return: define pandas.DataFrame self.trajectory
+        """
+
+        deltaTime = int((endTime - startTime).total_seconds())
+        step = round(deltaTime/steps)
+        times = list(range(0, deltaTime, step))
+        times.append(deltaTime)
+
+        self.trajectoryTimes = []
+        self.trajectoryPos = np.zeros([len(times), 3])
+        self.trajectoryVeloc = np.zeros([len(times), 3])
+
+        for indx, deltaSeconds in enumerate(times):
+            time = startTime + dt.timedelta(seconds=deltaSeconds)
+
+            r, v = self.get_eci_state(time)
+
+            self.trajectoryTimes.append(time)
+            self.trajectoryPos[indx,:] = r
+            self.trajectoryVeloc[indx,:] = v
+
+        combined_rv = np.hstack((self.trajectoryPos, self.trajectoryVeloc))
+        self.trajectory = pd.DataFrame(data=combined_rv, columns=['Posx','Posy','Posz','Velx','Vely','Velz'])
+        self.trajectory['Times'] = self.trajectoryTimes
+
+    def parse_trajectory(self, indx):
+        """
+        Given index in the trajectory DataFrame, return r, v in nice form
+        :param indx: indx in self._trajectory
+        :return: float list r, float list v in format [x,y,z]
+        """
+
+        r = [self.trajectory.iloc[indx]['Posx'], self.trajectory.iloc[indx]['Posy'], self.trajectory.iloc[indx]['Posz']]
+        v = [self.trajectory.iloc[indx]['Velx'], self.trajectory.iloc[indx]['Vely'], self.trajectory.iloc[indx]['Velz']]
+
+        return r, v
 
     def is_in_sphere(self,laser_loc, time, sphere_size):
         """
         Given the location of the laser satellite, the time, and sphere size, calculates if obj is in sphere
         :param list laser_loc: location of laser in ECI [x,y,z] [m]
-        :param datetime time: time in UTC
+        :param datetime.datetime time: time in UTC
         :param float sphere_size: radius of targeting sphere [m]
         :return: bool in: True if obj is in the sphere
         """
