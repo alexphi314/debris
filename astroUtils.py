@@ -22,84 +22,58 @@ class Object:
     """
     Generic class for orbital object
     """
-    def __init__(self, tle_str = None, kepElems = None):
+    def __init__(self, tle_str):
         """
         Initializer for object class, based on TLE
-        You can supply a tle_str or a dict of Keplerian elements. If both are given, the tle string is used
+        You must supply a tle_str
         :param string tle_str: tle in string format, used to define object params
-        :param dict kepElems: dictionary with entries {'i','O','e','wp','o','a','epoch','satNum','deb', 'satName'}
-                              corresponding to the keplerian orbit elements {Inclin [rad], RAAN [rad], eccent,
-                              arg of perigee [rad], true anomaly [rad], semi-major axis [m]} and epoch of the object,
-                              satellite number, if it is debris [bool], and satellite name
         """
 
-        if kepElems is not None and tle_str is None:
-            self.i = kepElems['i']
-            self.O = kepElems['O']
-            self.e = kepElems['e']
-            self.wp = kepElems['wp']
-            o = kepElems['o']
-            self.a = kepElems['a']
-            self.n = math.sqrt(MEW/math.pow(self.a,3))
-            E = 2*math.atan(math.sqrt((1-self.e)/(1+self.e))*math.tan(o/2))
-            self.M = E - self.e*math.sin(E)
+        lines = tle_str.split('\n')
+        line0 = lines[0]
+        line1 = lines[1]
+        line2 = lines[2]
 
-            if self.M > 2*math.pi:
-                self.M = self.M % 2*math.pi
+        self.satName = line0[2:].strip()
+        rb_re = re.compile('\S*R/B\S*',re.IGNORECASE)
+        deb_re = re.compile('\S*DEB\S*',re.IGNORECASE)
 
-            while self.M < 0:
-                self.M += 2*math.pi
-
-            self.epoch = kepElems['epoch']
-            self.satNum = kepElems['satNum']
-            self.deb = kepElems['deb']
-            self.satName = kepElems['satName']
+        if rb_re.search(self.satName) or deb_re.search(self.satName):
+            self.deb = True
         else:
-            lines = tle_str.split('\n')
-            line0 = lines[0]
-            line1 = lines[1]
-            line2 = lines[2]
+            self.deb = False
 
-            self.satName = line0[2:].strip()
-            rb_re = re.compile('\S*R/B\S*',re.IGNORECASE)
-            deb_re = re.compile('\S*DEB\S*',re.IGNORECASE)
+        self.satNum = int(line1[2:7])
+        epoch_year = line1[18:20]
+        epoch_day = line1[20:32]
+        self.i = math.radians(float(line2[8:16]))
+        self.O = math.radians(float(line2[17:25]))
+        self.e = float("." + line2[26:33])
+        self.wp = math.radians(float(line2[34:42]))
+        self.M = math.radians(float(line2[43:51]))
+        self.n = float(line2[52:63]) * 2 * math.pi / 86400  # rad/s
+        self.a = math.pow(MEW / math.pow(self.n, 2), float(1 / 3))  # m
 
-            if rb_re.search(self.satName) or deb_re.search(self.satName):
-                self.deb = True
-            else:
-                self.deb = False
+        ## Calculate TLE epoch time
+        if int(epoch_year) > int(dt.datetime.now().strftime('%y')):
+            year = "19" + str(epoch_year)
+        else:
+            year = "20" + str(epoch_year)
 
-            self.satNum = int(line1[2:7])
-            epoch_year = line1[18:20]
-            epoch_day = line1[20:32]
-            self.i = math.radians(float(line2[8:16]))
-            self.O = math.radians(float(line2[17:25]))
-            self.e = float("." + line2[26:33])
-            self.wp = math.radians(float(line2[34:42]))
-            self.M = math.radians(float(line2[43:51]))
-            self.n = float(line2[52:63]) * 2 * math.pi / 86400  # rad/s
-            self.a = math.pow(MEW / math.pow(self.n, 2), float(1 / 3))  # m
+        frac, doy = math.modf(float(epoch_day))
+        frac, hour = math.modf(frac * 24)
+        frac, min = math.modf(frac * 60)
+        frac, sec = math.modf(frac * 60)
 
-            ## Calculate TLE epoch time
-            if int(epoch_year) > int(dt.datetime.now().strftime('%y')):
-                year = "19" + str(epoch_year)
-            else:
-                year = "20" + str(epoch_year)
+        if doy < 10:
+            doy = "00" + str(int(doy))
+        elif doy < 100:
+            doy = "0" + str(int(doy))
+        else:
+            doy = str(int(doy))
 
-            frac, doy = math.modf(float(epoch_day))
-            frac, hour = math.modf(frac * 24)
-            frac, min = math.modf(frac * 60)
-            frac, sec = math.modf(frac * 60)
-
-            if doy < 10:
-                doy = "00" + str(int(doy))
-            elif doy < 100:
-                doy = "0" + str(int(doy))
-            else:
-                doy = str(int(doy))
-
-            epoch = '{}-{} {}:{}:{}.{}'.format(year, doy, int(hour), int(min), int(sec), str(frac)[2:6])
-            self.epoch = dt.datetime.strptime(epoch, '%Y-%j %H:%M:%S.%f')
+        epoch = '{}-{} {}:{}:{}.{}'.format(year, doy, int(hour), int(min), int(sec), str(frac)[2:6])
+        self.epoch = dt.datetime.strptime(epoch, '%Y-%j %H:%M:%S.%f')
 
         ## Calculate last perigee time
         timeSincePerigee = self.M/self.n
@@ -110,7 +84,6 @@ class Object:
         self.P = math.pow(self.h,2)/MEW
 
         ## Initialize sgp4 object
-        ## TODO: Fix initialization for keplerian element init
         self.sgpObject = twoline2rv(line1, line2, wgs72)
 
     def get_teme_state(self, time):

@@ -64,36 +64,6 @@ class Test_object_init(unittest.TestCase):
         self.assertFalse(obj.deb)
         self.assertEqual('VANGUARD 1',obj.satName)
 
-    def test_function_kepElems(self):
-        E = astroUtils.solve_kepler(self.M, self.e)
-        o = astroUtils.calc_o(E,self.e)
-        a = math.pow(astroUtils.MEW,1/3)/math.pow(self.n,2/3)
-        kepElems = {
-            'i': self.i,
-            'O': self.O,
-            'e': self.e,
-            'wp': self.wp,
-            'epoch': self.epoch,
-            'o': o,
-            'a': a,
-            'satNum': self.sat_num,
-            'deb': False,
-            'satName': 'VANGUARD 1'
-        }
-        obj = Object(kepElems=kepElems)
-        tle_obj = Object(tle_str=self.str)
-
-        self.assertEqual(obj.satNum, tle_obj.satNum)
-        self.assertEqual(obj.epoch, tle_obj.epoch)
-        self.assertEqual(obj.i, tle_obj.i)
-        self.assertEqual(obj.O, tle_obj.O)
-        self.assertEqual(obj.e, tle_obj.e)
-        self.assertEqual(obj.wp, tle_obj.wp)
-        self.assertAlmostEqual(obj.M, tle_obj.M, 5)
-        self.assertAlmostEqual(obj.n, tle_obj.n, 5)
-        self.assertEqual(obj.a, tle_obj.a)
-        self.assertFalse(obj.deb)
-
     def test_deb_classification(self):
         line0 = '0 THOR ABLESTAR R/B'
         line1 = '1    47U 60007C   19078.62082020 -.00000047 +00000-0 +14842-4 0  9994'
