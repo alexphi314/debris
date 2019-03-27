@@ -2,5 +2,6 @@
 *idea
 
 # Ignore plot and data files
-*Plots
+*Data*
+*Plots*
 *.pickle
