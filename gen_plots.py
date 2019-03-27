@@ -11,7 +11,7 @@ from bokeh.models import HoverTool, Legend, LogColorMapper, ColorBar, LogTicker
 from bokeh.layouts import gridplot
 from bokeh.palettes import Blues9
 
-from astroUtils import parse_catalog
+from astroUtils import parse_catalog, Re
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Input arguments")
@@ -22,15 +22,16 @@ if __name__ == "__main__":
     args = vars(parser.parse_args())
 
     parse = args['parse_data']
-    savefile = 'Data/satcat3.pickle'
-    if parse or savefile not in os.listdir(os.getcwd()):
+    dataDir = 'Data'
+    savefile = 'satcat3.pickle'
+    if parse or savefile not in os.listdir(os.path.join(os.getcwd(),dataDir)):
         print('Parsing tle file...')
         objects = parse_catalog(3)
-        with open(savefile,'wb') as f:
+        with open(os.path.join(os.getcwd(),dataDir,savefile), 'wb') as f:
             pickle.dump(objects,f)
     else:
         print('Loading pickle file')
-        with open(savefile,'rb') as f:
+        with open(os.path.join(os.getcwd(),dataDir,savefile),'rb') as f:
             objects = pickle.load(f)
 
     ## Check that Plots folder is made
