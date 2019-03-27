@@ -10,9 +10,13 @@ import queue
 
 import numpy as np
 
-from astroUtils import parse_catalog, MEW, Re, PropagationError
+from astroUtils import parse_catalog, MEW, Re, PropagationError, Object
 
 class Simulator:
+    tempLaserTLE = "LASER\n{}\n{}".format(
+        '1   900U 64063C   19085.91254635 +.00000212 +00000-0 +21859-3 0  9999',
+        '2   900 090.1517 021.2926 0026700 330.0700 101.6591 13.73206334708891'
+    )
     def __init__(self, startTime, endTime, steps):
         """
         Init simulator manager class
@@ -25,6 +29,8 @@ class Simulator:
         self.endTime = endTime
         self.steps = steps
         self.badTrajs = []
+
+        self.laserObject = Object(self.tempLaserTLE)
 
     def gen_trajectories(self):
         """
