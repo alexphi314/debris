@@ -11,7 +11,7 @@ from bokeh.models import HoverTool, Legend, LogColorMapper, ColorBar, LogTicker
 from bokeh.layouts import gridplot
 from bokeh.palettes import Blues9
 
-from .astroUtils import parse_catalog
+from astroUtils import parse_catalog
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Input arguments")
