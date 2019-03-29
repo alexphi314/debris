@@ -57,19 +57,17 @@ class Simulator:
         self.passQueue = queue.Queue()
         self.aLock = threading.Lock()
 
-    def setLaser(self, tle = None):
+    def setLaser(self, obj):
         """
         Update the laser object used for distance calcs
-        :param tle: tle string used to generate laser object
+        :param Object obj: sat cat obj used as laser
         :return:
         """
         assert self.passQueue.empty()
         assert self.trajQueue.empty()
 
-        if tle is None:
-            tle = self.tempLaserTLE
 
-        self.laserObject = Object(tle)
+        self.laserObject = obj
         self.laserObject.generate_trajectory(self.startTime, self.endTime, self.steps)
 
         ## Define laser pass variables
@@ -110,9 +108,11 @@ class Simulator:
                 if len(smallDist) > 0:
                     tempDf = pd.DataFrame(columns=self.dfCols)
                     tempDf['Distance [km]'] = smallDist
-                    tempDf['Time'] = [obj.trajectoryTimes[i[0]] for i in indices if i is not None]
+                    tempDf['Time'] = [obj.trajectoryTimes[i] for i in indices[0]]
                     tempDf['Object'] = obj.satName
                     tempDf['Number'] = obj.satNum
+
+                    assert len([obj.trajectoryTimes[i] for i in indices[0]]) == len(smallDist)
 
                     with self.aLock:
                         self._laserPasses = append(self._laserPasses, tempDf)
@@ -215,19 +215,20 @@ if __name__ == "__main__":
         len(simulator.badTrajs))
     )
 
-    tles = [simulator.tempLaserTLE]
+    with open(os.path.join(os.getcwd(), dataDir, 'laserTLEObjects.pickle'), 'rb') as f:
+        laser_objs = pickle.load(f)
+
     print('Running from {} to {}, with {} steps'.format(
         startTime.strftime(frmat), endTime.strftime(frmat), steps
     ))
-    for tle in tles:
-        simulator.setLaser(tle)
+    for laser_obj in laser_objs:
+        simulator.setLaser(laser_obj)
 
         for obj in objects:
             if obj not in simulator.badTrajs:
                 simulator.passQueue.put(obj)
 
         simulator.passQueue.join()
-        print('Finished calculating passes')
 
         ###############################
         ### Output Results and Plot ###
@@ -235,8 +236,7 @@ if __name__ == "__main__":
 
         passes = simulator.get_passes()
         print('')
-        print('TLE:')
-        print(tle)
+        print('Laser Object: {}'.format(laser_obj.satName))
         uniquePasses = set([passes.iloc[i]['Number'] for i in range(0,len(passes))])
         print('Got {} passes, {} unique objects'.format(len(passes), len(uniquePasses)))
         for i in range(0, len(passes)):
@@ -244,9 +244,8 @@ if __name__ == "__main__":
             print('{}: {} seen {} km away'.format(
                 row['Time'].strftime(frmat),row['Object'], round(row['Distance [km]'],2)))
 
-        output_file('Plots/laserPasses_{}.html'.format(simulator.laserObject.satName))
+        output_file('Plots/laserPasses_{}.html'.format(simulator.laserObject.satNum))
         source = ColumnDataSource(passes)
         p = figure(title='Laser Passes Over Time', x_axis_label='Time', x_axis_type='datetime',y_axis_label='Distance [km]',
                    tooltips=[('Time','$x'),('Distance','$y'),('Object','@Object')])
         p.scatter(x='Time',y='Distance [km]',source=source)
-        show(p)
