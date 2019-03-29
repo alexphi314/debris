@@ -10,8 +10,12 @@ import sys
 
 import pandas as pd
 import numpy as np
+from bokeh.plotting import figure, output_file, show
+from bokeh.models import ColumnDataSource
 
 from astroUtils import parse_catalog, Re, PropagationError, Object
+
+frmat = '%Y-%m-%d %H:%M:%S'
 
 def append(exist,new):
     """
@@ -27,6 +31,9 @@ def append(exist,new):
     return appended
 
 class Simulator:
+    """
+    Simulator manager class
+    """
     tempLaserTLE = "LASER\n{}\n{}".format(
         '1   900U 64063C   19085.91254635 +.00000212 +00000-0 +21859-3 0  9999',
         '2   900 090.1517 021.2926 0026700 330.0700 101.6591 13.73206334708891'
@@ -34,7 +41,6 @@ class Simulator:
     laserRange = 100e3 #m
     def __init__(self, startTime, endTime, steps):
         """
-        Init simulator manager class
         :param datetime.datetime startTime: simulation start time
         :param datetime.datetime endTime: simulation end time
         :param int steps: number of trajectory steps
@@ -89,7 +95,7 @@ class Simulator:
                 smallDist = relDist[indices]/1000 #convert to km
 
                 if len(smallDist) > 0:
-                    tempDf = pd.DataFrame(columns=['Time','Object','Distance'])
+                    tempDf = pd.DataFrame(columns=['Time','Object','Distance [km]'])
                     tempDf['Distance [km]'] = smallDist
                     tempDf['Time'] = [obj.trajectoryTimes[i[0]] for i in indices if i is not None]
                     tempDf['Object'] = obj.satName
@@ -112,6 +118,11 @@ class Simulator:
         print('{}: {}'.format(threading.current_thread().name, msg))
 
 if __name__ == "__main__":
+
+    #####################################
+    ### Read Arguments and Load Files ###
+    #####################################
+
     parser = argparse.ArgumentParser(description="Input arguments")
     optional = parser.add_argument_group('optional arguments')
     optional.add_argument("--parse_data", "-p", help="Re-parse sat cat file, rather than read stored data",
@@ -151,20 +162,24 @@ if __name__ == "__main__":
     if not 'Data' in os.listdir(os.getcwd()):
         os.makedirs(os.getcwd() + '/Data')
 
+    ######################
+    ### Run Simulation ###
+    ######################
+
     print('Starting sim...')
     print('Running with {} pieces of debris'.format(len(objects)))
-    objRad = 5 #m
+    numDays = 7
     startTime = dt.datetime(2019,3,27,17,00,00)
-    endTime = startTime + dt.timedelta(days=2)
-    steps = 48
+    endTime = startTime + dt.timedelta(days=numDays)
+    steps = numDays*24
 
     simulator = Simulator(startTime, endTime, steps)
+
     for i in range(1,5):
         worker = threading.Thread(target=simulator.gen_trajectories,
                                   name='trajectory-worker-{}'.format(i))
         worker.setDaemon(True)
         worker.start()
-
     for i in range(1,5):
         worker = threading.Thread(target=simulator.compute_passes,
                                   name='pass-worker-{}'.format(i))
@@ -180,20 +195,24 @@ if __name__ == "__main__":
     )
     simulator.passQueue.join()
     print('Finished calculating passes')
-    passes = simulator.laserPasses
-    passes.to_csv('Data/laser_passes.csv',index=False)
 
-    ## Check for conjunction
-    # for i in range(0, len(objects)):
-    #     obj = objects[i]
-    #     position = positions[i,:]
-    #
-    #     relPos = positions - position
-    #     relDist = np.linalg.norm(relPos, axis=1)
-    #     indices = np.where(relDist<5)
-    #     conjunctionJunction = relDist[indices]
-    #
-    #     if len(conjunctionJunction) > 1:
-    #         print('COLLISION DETECTED')
-    #         print('Between {}'.format(', '.join(objects[i].satName for i in indices[0])))
+    ###############################
+    ### Output Results and Plot ###
+    ###############################
 
+    print('')
+    print('Ran from {} to {}, with {} steps'.format(
+        startTime.strftime(frmat), endTime.strftime(frmat), steps
+    ))
+    print('Got {} passes'.format(len(simulator.laserPasses)))
+    for i in range(0,len(simulator.laserPasses)):
+        row = simulator.laserPasses.iloc[i]
+        print('{}: {} seen {} km away'.format(
+            row['Time'].strftime(frmat),row['Object'], round(row['Distance [km]'],2)))
+
+    output_file('Plots/laserPasses.html')
+    source = ColumnDataSource(simulator.laserPasses)
+    p = figure(title='Laser Passes Over Time', x_axis_label='Time', x_axis_type='datetime',y_axis_label='Distance [km]',
+               tooltips=[('Time','$x'),('Distance','$y'),('Object','@Object')])
+    p.scatter(x='Time',y='Distance [km]',source=source)
+    show(p)
