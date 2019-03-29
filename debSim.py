@@ -52,15 +52,28 @@ class Simulator:
         self.endTime = endTime
         self.steps = steps
         self.badTrajs = []
+        self.dfCols = ['Time', 'Object', 'Distance [km]', 'Number']
 
-        ##TODO: Use passed-in TLE for laser object definition
-        self.laserObject = Object(self.tempLaserTLE)
+        self.passQueue = queue.Queue()
+        self.aLock = threading.Lock()
+
+    def setLaser(self, tle = None):
+        """
+        Update the laser object used for distance calcs
+        :param tle: tle string used to generate laser object
+        :return:
+        """
+        assert self.passQueue.empty()
+        assert self.trajQueue.empty()
+
+        if tle is None:
+            tle = self.tempLaserTLE
+
+        self.laserObject = Object(tle)
         self.laserObject.generate_trajectory(self.startTime, self.endTime, self.steps)
 
         ## Define laser pass variables
-        self.laserPasses = pd.DataFrame([],columns=['Time','Object','Distance [km]'])
-        self.passQueue = queue.Queue()
-        self.aLock = threading.Lock()
+        self._laserPasses = pd.DataFrame([], columns=self.dfCols)
 
     def gen_trajectories(self):
         """
@@ -72,7 +85,6 @@ class Simulator:
                 obj = self.trajQueue.get()
                 obj.generate_trajectory(self.startTime, self.endTime, self.steps)
                 #self.message('Trajectory generated for {}'.format(obj.satName))
-                self.passQueue.put(obj)
             except PropagationError as e:
                 self.message('Got Propagation Error: {}'.format(e.msg))
                 self.badTrajs.append(obj)
@@ -87,6 +99,7 @@ class Simulator:
         while True:
             try:
                 obj = self.passQueue.get()
+                assert self.laserObject is not None
                 relPosition = obj.trajectoryPos - self.laserObject.trajectoryPos
                 relVelocity = obj.trajectoryVeloc - self.laserObject.trajectoryVeloc
 
@@ -95,19 +108,27 @@ class Simulator:
                 smallDist = relDist[indices]/1000 #convert to km
 
                 if len(smallDist) > 0:
-                    tempDf = pd.DataFrame(columns=['Time','Object','Distance [km]'])
+                    tempDf = pd.DataFrame(columns=self.dfCols)
                     tempDf['Distance [km]'] = smallDist
                     tempDf['Time'] = [obj.trajectoryTimes[i[0]] for i in indices if i is not None]
                     tempDf['Object'] = obj.satName
+                    tempDf['Number'] = obj.satNum
 
                     with self.aLock:
-                        self.laserPasses = append(self.laserPasses, tempDf)
+                        self._laserPasses = append(self._laserPasses, tempDf)
 
             except Exception as e:
                 e_type, e_obj, e_tb = sys.exc_info()
                 self.message('Got {} on line {}: {}'.format(e_type, e_tb.tb_lineno, e))
                 pass
             self.passQueue.task_done()
+
+    def get_passes(self):
+        """
+        Return laserPasses dataframe
+        :return: pd.DataFrame laserPasses
+        """
+        return self._laserPasses
 
     def message(self, msg):
         """
@@ -168,7 +189,7 @@ if __name__ == "__main__":
 
     print('Starting sim...')
     print('Running with {} pieces of debris'.format(len(objects)))
-    numDays = 7
+    numDays = 1
     startTime = dt.datetime(2019,3,27,17,00,00)
     endTime = startTime + dt.timedelta(days=numDays)
     steps = numDays*24
@@ -193,26 +214,39 @@ if __name__ == "__main__":
     print('Finished generating trajectories, with {} invalid'.format(
         len(simulator.badTrajs))
     )
-    simulator.passQueue.join()
-    print('Finished calculating passes')
 
-    ###############################
-    ### Output Results and Plot ###
-    ###############################
-
-    print('')
-    print('Ran from {} to {}, with {} steps'.format(
+    tles = [simulator.tempLaserTLE]
+    print('Running from {} to {}, with {} steps'.format(
         startTime.strftime(frmat), endTime.strftime(frmat), steps
     ))
-    print('Got {} passes'.format(len(simulator.laserPasses)))
-    for i in range(0,len(simulator.laserPasses)):
-        row = simulator.laserPasses.iloc[i]
-        print('{}: {} seen {} km away'.format(
-            row['Time'].strftime(frmat),row['Object'], round(row['Distance [km]'],2)))
+    for tle in tles:
+        simulator.setLaser(tle)
 
-    output_file('Plots/laserPasses.html')
-    source = ColumnDataSource(simulator.laserPasses)
-    p = figure(title='Laser Passes Over Time', x_axis_label='Time', x_axis_type='datetime',y_axis_label='Distance [km]',
-               tooltips=[('Time','$x'),('Distance','$y'),('Object','@Object')])
-    p.scatter(x='Time',y='Distance [km]',source=source)
-    show(p)
+        for obj in objects:
+            if obj not in simulator.badTrajs:
+                simulator.passQueue.put(obj)
+
+        simulator.passQueue.join()
+        print('Finished calculating passes')
+
+        ###############################
+        ### Output Results and Plot ###
+        ###############################
+
+        passes = simulator.get_passes()
+        print('')
+        print('TLE:')
+        print(tle)
+        uniquePasses = set([passes.iloc[i]['Number'] for i in range(0,len(passes))])
+        print('Got {} passes, {} unique objects'.format(len(passes), len(uniquePasses)))
+        for i in range(0, len(passes)):
+            row = passes.iloc[i]
+            print('{}: {} seen {} km away'.format(
+                row['Time'].strftime(frmat),row['Object'], round(row['Distance [km]'],2)))
+
+        output_file('Plots/laserPasses_{}.html'.format(simulator.laserObject.satName))
+        source = ColumnDataSource(passes)
+        p = figure(title='Laser Passes Over Time', x_axis_label='Time', x_axis_type='datetime',y_axis_label='Distance [km]',
+                   tooltips=[('Time','$x'),('Distance','$y'),('Object','@Object')])
+        p.scatter(x='Time',y='Distance [km]',source=source)
+        show(p)
