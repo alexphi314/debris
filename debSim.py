@@ -7,11 +7,14 @@ import datetime as dt
 import threading
 import queue
 import sys
+import math
 
 import pandas as pd
 import numpy as np
 from bokeh.plotting import figure, output_file, show
-from bokeh.models import ColumnDataSource
+from bokeh.models import ColumnDataSource, ColorBar, LinearColorMapper
+from bokeh.palettes import Blues9
+from bokeh.layouts import gridplot
 
 from astroUtils import parse_catalog, Re, PropagationError, Object
 
@@ -189,10 +192,10 @@ if __name__ == "__main__":
 
     print('Starting sim...')
     print('Running with {} pieces of debris'.format(len(objects)))
-    numDays = 1
+    numDays = 7
     startTime = dt.datetime(2019,3,27,17,00,00)
     endTime = startTime + dt.timedelta(days=numDays)
-    steps = numDays*24
+    steps = numDays*3*24
 
     simulator = Simulator(startTime, endTime, steps)
 
@@ -217,6 +220,18 @@ if __name__ == "__main__":
 
     with open(os.path.join(os.getcwd(), dataDir, 'laserTLEObjects.pickle'), 'rb') as f:
         laser_objs = pickle.load(f)
+
+    lower_alt = 695
+    upper_alt = 1005
+    alt_delim = 5
+    lower_i = 0
+    upper_i = 100
+    i_delim = 1
+    np_alt = np.linspace(lower_alt, upper_alt, int((upper_alt + alt_delim - lower_alt) / alt_delim))
+    np_inc = np.linspace(lower_i, upper_i, int((upper_i + i_delim - lower_i) / i_delim))
+    z = np.zeros([len(np_inc), len(np_alt)])
+
+    Blues9.reverse()
 
     print('Running from {} to {}, with {} steps'.format(
         startTime.strftime(frmat), endTime.strftime(frmat), steps
@@ -249,3 +264,22 @@ if __name__ == "__main__":
         p = figure(title='Laser Passes Over Time', x_axis_label='Time', x_axis_type='datetime',y_axis_label='Distance [km]',
                    tooltips=[('Time','$x'),('Distance','$y'),('Object','@Object')])
         p.scatter(x='Time',y='Distance [km]',source=source)
+
+
+        alt = (simulator.laserObject.a - Re)/1000
+        nearest_alt = int(alt // alt_delim) * alt_delim
+        nearest_inc = int(math.degrees(simulator.laserObject.i) // i_delim) * i_delim
+
+        x_coord = np.where(np_alt == nearest_alt)[0][0]
+        y_coord = np.where(np_inc == nearest_inc)[0][0]
+        z[y_coord][x_coord] += len(uniquePasses)
+
+    output_file('Plots/laserPasses_{}.html'.format(steps))
+    p2 = figure(title='Debris Passes', x_axis_label='Altitude (km)', y_axis_label='Inclination (deg)',
+                x_range=(lower_alt, upper_alt), y_range=(lower_i, upper_i),
+                tooltips=[("Alt", "$x"), ("Inc", "$y"), ("Passes", "@image")])
+    cmap = LinearColorMapper(palette=Blues9, low=0, high=z.max())
+    p2.image(image=[z], x=lower_alt, y=lower_i, dw=upper_alt - lower_alt, dh=upper_i - lower_i, color_mapper=cmap)
+    color_bar = ColorBar(color_mapper=cmap, location=(0, 0))
+    p2.add_layout(color_bar, 'right')
+    show(p2)
