@@ -1,0 +1,229 @@
+Parsing tle file...
+Target altitude: 700 km
+  Target inclination: 0 deg
+  Target inclination: 30 deg
+  Target inclination: 45 deg
+  Target inclination: 60 deg
+    TIROS 5 (309): alt 703.3 km inc 58.1 deg ecc 0.02
+  Target inclination: 75 deg
+    FORMOSAT 3D (29050): alt 696.9 km inc 72.0 deg ecc 0.0
+    TBA - TO BE ASSIGNED (82187): alt 697.7 km inc 70.9 deg ecc 0.01
+    TBA - TO BE ASSIGNED (87727): alt 697.0 km inc 71.0 deg ecc 0.0
+  Target inclination: 90 deg
+    TBA - TO BE ASSIGNED (89347): alt 703.7 km inc 86.3 deg ecc 0.0
+  Target inclination: 96.6 deg
+    OPS 0340 (2125): alt 703.8 km inc 98.1 deg ecc 0.02
+    OPS 1264 (DMSP 4A F4) (2980): alt 695.2 km inc 99.2 deg ecc 0.01
+    LANDSAT 7 (25682): alt 702.2 km inc 98.1 deg ecc 0.0
+    TERRA (25994): alt 702.3 km inc 98.2 deg ecc 0.0
+    SAC C (26620): alt 696.7 km inc 98.2 deg ecc 0.0
+    AQUA (27424): alt 702.3 km inc 98.2 deg ecc 0.0
+    MOZHAYETS (27560): alt 700.2 km inc 98.3 deg ecc 0.0
+    AURA (28376): alt 702.3 km inc 98.2 deg ecc 0.0
+    SAUDICOMSAT 6 (31121): alt 697.7 km inc 98.1 deg ecc 0.01
+    MAST (31126): alt 703.6 km inc 98.1 deg ecc 0.01
+    CP3 (31129): alt 703.4 km inc 98.2 deg ecc 0.01
+    CAPE 1 (31130): alt 704.6 km inc 98.2 deg ecc 0.01
+    CP4 (31132): alt 696.0 km inc 98.1 deg ecc 0.01
+    AEROCUBE 2 (31133): alt 695.9 km inc 98.1 deg ecc 0.01
+    BEESAT (35933): alt 704.8 km inc 98.6 deg ecc 0.0
+    NIGERIASAT X (37790): alt 697.5 km inc 98.1 deg ecc 0.0
+    PLEIADES 1 (38012): alt 697.6 km inc 98.2 deg ecc 0.0
+    GCOM W1 (38337): alt 702.3 km inc 98.2 deg ecc 0.0
+    SPOT 6 (38755): alt 697.7 km inc 98.2 deg ecc 0.0
+    PLEIADES 1B (39019): alt 697.6 km inc 98.2 deg ecc 0.0
+    LANDSAT 8 (39084): alt 702.3 km inc 98.2 deg ecc 0.0
+    GOMX 1 (39430): alt 695.5 km inc 97.7 deg ecc 0.02
+    SENTINEL 1A (39634): alt 695.5 km inc 98.2 deg ecc 0.0
+    SPOT 7 (40053): alt 697.5 km inc 98.2 deg ecc 0.0
+    OCO 2 (40059): alt 702.3 km inc 98.2 deg ecc 0.0
+    SENTINEL 1B (41456): alt 695.5 km inc 98.2 deg ecc 0.0
+    PERUSAT 1 (41770): alt 697.6 km inc 98.2 deg ecc 0.0
+    TANSAT (41898): alt 703.9 km inc 98.2 deg ecc 0.0
+    YIJIAN (41899): alt 704.6 km inc 98.2 deg ecc 0.0
+    GAOFEN-5 (43461): alt 700.2 km inc 98.2 deg ecc 0.0
+    CENTISPACE-1 S1 (43636): alt 702.2 km inc 98.2 deg ecc 0.0
+    YAOGAN-32 A (43642): alt 695.5 km inc 98.3 deg ecc 0.0
+    YAOGAN-32 B (43643): alt 695.5 km inc 98.3 deg ecc 0.0
+    TBA - TO BE ASSIGNED (81264): alt 699.6 km inc 99.5 deg ecc 0.01
+    TBA - TO BE ASSIGNED (81371): alt 702.2 km inc 98.8 deg ecc 0.01
+    TBA - TO BE ASSIGNED (81521): alt 698.7 km inc 99.7 deg ecc 0.0
+Target altitude: 750 km
+  Target inclination: 0 deg
+  Target inclination: 30 deg
+  Target inclination: 45 deg
+    ORBCOMM FM 105 (41181): alt 747.3 km inc 47.0 deg ecc 0.0
+  Target inclination: 60 deg
+    TBA - TO BE ASSIGNED (89269): alt 752.9 km inc 64.2 deg ecc 0.07
+  Target inclination: 75 deg
+  Target inclination: 90 deg
+    IRIDIUM 115 (42806): alt 747.5 km inc 86.5 deg ecc 0.0
+    IRIDIUM 124 (42810): alt 746.4 km inc 86.4 deg ecc 0.0
+    IRIDIUM 161 (43478): alt 747.5 km inc 86.4 deg ecc 0.0
+    IRIDIUM 162 (43482): alt 747.4 km inc 86.4 deg ecc 0.0
+  Target inclination: 96.6 deg
+    OPS 6026 (DMSP 4A F1) (2418): alt 752.6 km inc 98.2 deg ecc 0.01
+    MIRANDA (X-4) (7213): alt 748.7 km inc 97.8 deg ecc 0.01
+    ORBCOMM-X (21576): alt 753.2 km inc 98.6 deg ecc 0.0
+    JAWSAT (26061): alt 754.0 km inc 100.2 deg ecc 0.0
+    PICOSAT 1&2 (TETHERED) (26080): alt 747.9 km inc 100.2 deg ecc 0.0
+    PICOSAT 4 (26092): alt 746.7 km inc 100.2 deg ecc 0.0
+    PICOSAT 6 (26094): alt 750.1 km inc 100.2 deg ecc 0.0
+    AMSAT ECHO (28375): alt 751.9 km inc 98.4 deg ecc 0.01
+    RUBIN 9.1/RUBIN 9.2/PSLV (35936): alt 752.3 km inc 98.0 deg ecc 0.01
+    PRISMA (TANGO) (36827): alt 750.4 km inc 98.5 deg ecc 0.0
+    SHIYUAN 5 (SY-5) (39455): alt 745.5 km inc 98.1 deg ecc 0.0
+    KAZEOSAT 1 (39731): alt 751.5 km inc 98.4 deg ecc 0.0
+    GAOFEN 3 (41727): alt 751.0 km inc 98.4 deg ecc 0.0
+    TBA - TO BE ASSIGNED (81661): alt 750.2 km inc 98.4 deg ecc 0.01
+    TBA - TO BE ASSIGNED (81813): alt 748.3 km inc 99.0 deg ecc 0.0
+    TBA - TO BE ASSIGNED (82112): alt 751.1 km inc 98.7 deg ecc 0.01
+    TBA - TO BE ASSIGNED (85383): alt 754.9 km inc 98.7 deg ecc 0.01
+    TBA - TO BE ASSIGNED (85386): alt 745.1 km inc 98.7 deg ecc 0.01
+    TBA - TO BE ASSIGNED (87094): alt 746.3 km inc 99.8 deg ecc 0.01
+    TBA - TO BE ASSIGNED (89281): alt 754.0 km inc 99.4 deg ecc 0.0
+Target altitude: 800 km
+  Target inclination: 0 deg
+  Target inclination: 30 deg
+  Target inclination: 45 deg
+  Target inclination: 60 deg
+  Target inclination: 75 deg
+    FORMOSAT 3A (29047): alt 795.9 km inc 72.0 deg ecc 0.0
+    FORMOSAT 3B (29048): alt 796.1 km inc 72.0 deg ecc 0.0
+    FORMOSAT 3C (29049): alt 795.8 km inc 72.0 deg ecc 0.0
+    FORMOSAT 3E (29051): alt 795.7 km inc 72.0 deg ecc 0.01
+    FORMOSAT 3F (29052): alt 795.4 km inc 72.0 deg ecc 0.0
+  Target inclination: 90 deg
+  Target inclination: 96.6 deg
+    OPS 3367 A (734): alt 795.4 km inc 99.1 deg ecc 0.0
+    OPS 3367 B (735): alt 798.9 km inc 99.1 deg ecc 0.0
+    OPS 8068 (1580): alt 799.8 km inc 98.5 deg ecc 0.02
+    OPS 6073 (DMSP 4A F2) (2669): alt 801.5 km inc 99.0 deg ecc 0.01
+    OPS 4078 (DMSP 4B F2) (3510): alt 801.0 km inc 98.3 deg ecc 0.0
+    OPS 1127 (DMSP 4B F3) (4047): alt 796.1 km inc 98.8 deg ecc 0.0
+    OPS 4311 (DMSP 5B F1) (5557): alt 801.1 km inc 99.1 deg ecc 0.01
+    OPS 7323 (DMSP 5B F3) (6275): alt 798.8 km inc 98.5 deg ecc 0.0
+    OPS 6983 (DMSP 5C F1) (7411): alt 798.7 km inc 98.7 deg ecc 0.0
+    NOAA 8 (13923): alt 796.0 km inc 98.6 deg ecc 0.0
+    OPS 1294 (DMSP 5D-2 F7) (14506): alt 798.1 km inc 98.4 deg ecc 0.0
+    NOAA 10 (16969): alt 798.0 km inc 98.5 deg ecc 0.0
+    DMSP 5D-2 F9 (USA 29) (18822): alt 800.8 km inc 98.5 deg ecc 0.0
+    STELLA (22824): alt 800.3 km inc 98.9 deg ecc 0.0
+    ADEOS 2 (27597): alt 800.2 km inc 98.5 deg ecc 0.0
+    FEDSAT (27598): alt 795.9 km inc 98.5 deg ecc 0.0
+    SENTINEL 3A (41335): alt 802.4 km inc 98.6 deg ecc 0.0
+    HEAD-1 (43011): alt 802.7 km inc 98.7 deg ecc 0.0
+    GCOM-C (43065): alt 800.7 km inc 98.6 deg ecc 0.0
+    SENTINEL 3B (43437): alt 802.4 km inc 98.6 deg ecc 0.0
+    TBA - TO BE ASSIGNED (81481): alt 797.3 km inc 98.7 deg ecc 0.0
+    TBA - TO BE ASSIGNED (82320): alt 802.3 km inc 99.8 deg ecc 0.02
+    TBA - TO BE ASSIGNED (87878): alt 798.4 km inc 99.2 deg ecc 0.0
+    TBA - TO BE ASSIGNED (87898): alt 804.0 km inc 98.9 deg ecc 0.01
+Target altitude: 850 km
+  Target inclination: 0 deg
+  Target inclination: 30 deg
+  Target inclination: 45 deg
+  Target inclination: 60 deg
+  Target inclination: 75 deg
+    COSMOS 1603 (15333): alt 845.2 km inc 71.0 deg ecc 0.0
+    COSMOS 1697 (16181): alt 847.5 km inc 71.0 deg ecc 0.0
+    COSMOS 1833 (17589): alt 849.2 km inc 70.9 deg ecc 0.0
+    COSMOS 1844 (17973): alt 845.2 km inc 70.9 deg ecc 0.0
+    COSMOS 2219 (22219): alt 846.7 km inc 71.1 deg ecc 0.0
+    COSMOS 2227 (22284): alt 847.8 km inc 71.0 deg ecc 0.0
+    COSMOS 2237 (22565): alt 850.8 km inc 70.8 deg ecc 0.0
+    COSMOS 2263 (22802): alt 848.2 km inc 70.9 deg ecc 0.0
+    COSMOS 2278 (23087): alt 846.2 km inc 71.1 deg ecc 0.0
+    COSMOS 2297 (23404): alt 847.1 km inc 71.0 deg ecc 0.0
+    COSMOS 2322 (23704): alt 847.5 km inc 71.0 deg ecc 0.0
+    COSMOS 2333 (24297): alt 847.8 km inc 70.9 deg ecc 0.0
+    COSMOS 2360 (25406): alt 850.5 km inc 70.8 deg ecc 0.0
+    COSMOS 2369 (26069): alt 847.6 km inc 71.0 deg ecc 0.0
+    COSMOS 2406 (28352): alt 853.4 km inc 71.0 deg ecc 0.0
+    COSMOS 2428 (31792): alt 850.5 km inc 71.0 deg ecc 0.0
+    TBA - TO BE ASSIGNED (82524): alt 846.7 km inc 73.3 deg ecc 0.02
+    TBA - TO BE ASSIGNED (89135): alt 853.6 km inc 71.0 deg ecc 0.01
+  Target inclination: 90 deg
+  Target inclination: 96.6 deg
+    NOAA 13 (22739): alt 849.8 km inc 98.5 deg ecc 0.0
+    NOAA 14 (23455): alt 845.0 km inc 98.6 deg ecc 0.0
+    SJ-5 (25731): alt 850.9 km inc 99.1 deg ecc 0.0
+    NOAA 16 (26536): alt 848.1 km inc 98.8 deg ecc 0.0
+    DMSP 5D-3 F16 (USA 172) (28054): alt 846.5 km inc 98.9 deg ecc 0.0
+    NOAA 18 (28654): alt 850.9 km inc 99.1 deg ecc 0.0
+    DMSP 5D-3 F17 (USA 191) (29522): alt 845.5 km inc 98.8 deg ecc 0.0
+    NOAA 19 (33591): alt 851.1 km inc 99.2 deg ecc 0.0
+    DMSP 5D-3 F18 (USA 210) (35951): alt 848.3 km inc 98.6 deg ecc 0.0
+    DMSP 5D-3 F19 (USA 249) (39630): alt 845.8 km inc 98.8 deg ecc 0.0
+    TBA - TO BE ASSIGNED (81067): alt 851.1 km inc 99.1 deg ecc 0.01
+    TBA - TO BE ASSIGNED (81279): alt 847.4 km inc 98.1 deg ecc 0.02
+    TBA - TO BE ASSIGNED (81478): alt 846.8 km inc 99.2 deg ecc 0.02
+    TBA - TO BE ASSIGNED (81721): alt 852.9 km inc 98.2 deg ecc 0.04
+    TBA - TO BE ASSIGNED (82268): alt 852.2 km inc 99.1 deg ecc 0.01
+    TBA - TO BE ASSIGNED (82298): alt 852.8 km inc 99.1 deg ecc 0.01
+    TBA - TO BE ASSIGNED (82683): alt 848.0 km inc 98.2 deg ecc 0.02
+    TBA - TO BE ASSIGNED (85159): alt 854.9 km inc 98.8 deg ecc 0.01
+    TBA - TO BE ASSIGNED (87883): alt 853.0 km inc 99.4 deg ecc 0.03
+    TBA - TO BE ASSIGNED (89490): alt 851.5 km inc 98.4 deg ecc 0.01
+Target altitude: 900 km
+  Target inclination: 0 deg
+  Target inclination: 30 deg
+  Target inclination: 45 deg
+  Target inclination: 60 deg
+    COSMOS 1176 FUEL CORE (11971): alt 904.5 km inc 64.8 deg ecc 0.01
+  Target inclination: 75 deg
+    OPS 7613 (P/L 1) (4256): alt 899.4 km inc 70.0 deg ecc 0.0
+  Target inclination: 90 deg
+  Target inclination: 96.6 deg
+    LANDSAT 1 (ERTS 1) (6126): alt 902.1 km inc 99.2 deg ecc 0.0
+    OSCAR 8 (10703): alt 896.1 km inc 99.0 deg ecc 0.0
+    IRS 1A (18960): alt 904.7 km inc 99.2 deg ecc 0.0
+    IRS 1B (21688): alt 902.8 km inc 99.1 deg ecc 0.0
+    MSX (23851): alt 900.2 km inc 98.7 deg ecc 0.0
+    TBA - TO BE ASSIGNED (82250): alt 895.7 km inc 99.0 deg ecc 0.01
+    TBA - TO BE ASSIGNED (82369): alt 904.4 km inc 99.1 deg ecc 0.01
+    TBA - TO BE ASSIGNED (82526): alt 895.1 km inc 99.3 deg ecc 0.01
+    TBA - TO BE ASSIGNED (82576): alt 899.8 km inc 99.3 deg ecc 0.01
+    TBA - TO BE ASSIGNED (82642): alt 898.8 km inc 99.0 deg ecc 0.01
+    TBA - TO BE ASSIGNED (87054): alt 897.0 km inc 100.1 deg ecc 0.0
+Target altitude: 950 km
+  Target inclination: 0 deg
+  Target inclination: 30 deg
+  Target inclination: 45 deg
+    TELKOM 3 (38744): alt 947.7 km inc 49.9 deg ecc 0.1
+  Target inclination: 60 deg
+    COSMOS 952 (10358): alt 950.9 km inc 64.9 deg ecc 0.0
+    COSMOS 1607 (15378): alt 951.0 km inc 65.0 deg ecc 0.0
+    COSMOS 1670 (15930): alt 950.5 km inc 64.9 deg ecc 0.01
+    COSMOS 1771 (16917): alt 954.8 km inc 65.0 deg ecc 0.0
+  Target inclination: 75 deg
+  Target inclination: 90 deg
+  Target inclination: 96.6 deg
+    NIMBUS 7 (11080): alt 948.4 km inc 99.6 deg ecc 0.0
+    TBA - TO BE ASSIGNED (82560): alt 946.5 km inc 100.0 deg ecc 0.0
+    TBA - TO BE ASSIGNED (85370): alt 953.1 km inc 100.0 deg ecc 0.0
+    TBA - TO BE ASSIGNED (87448): alt 954.0 km inc 100.4 deg ecc 0.01
+Target altitude: 1000 km
+  Target inclination: 0 deg
+  Target inclination: 30 deg
+  Target inclination: 45 deg
+    KIKU 4 (ETS 3) (13492): alt 995.8 km inc 44.6 deg ecc 0.0
+  Target inclination: 60 deg
+  Target inclination: 75 deg
+  Target inclination: 90 deg
+    NNSS 20 (TRANSIT 20) (6909): alt 997.5 km inc 89.8 deg ecc 0.02
+    ONEWEB-0012 (44057): alt 999.7 km inc 87.8 deg ecc 0.0
+    ONEWEB-0010 (44058): alt 998.7 km inc 87.8 deg ecc 0.0
+    ONEWEB-0008 (44059): alt 998.4 km inc 87.8 deg ecc 0.0
+    ONEWEB-0007 (44060): alt 997.9 km inc 87.8 deg ecc 0.0
+    ONEWEB-0006 (44061): alt 997.5 km inc 87.8 deg ecc 0.0
+    ONEWEB-0011 (44062): alt 996.3 km inc 87.8 deg ecc 0.0
+  Target inclination: 96.6 deg
+    METEOR 3M (27001): alt 1003.5 km inc 99.5 deg ecc 0.0
+    KOMPASS (27002): alt 998.2 km inc 99.4 deg ecc 0.0
+    BADR B (27003): alt 998.5 km inc 99.4 deg ecc 0.0
+    MAROC TUBSAT (27004): alt 998.9 km inc 99.4 deg ecc 0.0
+    REFLECTOR (27005): alt 996.7 km inc 99.4 deg ecc 0.0
+    LEO 1 (43113): alt 999.9 km inc 99.4 deg ecc 0.0
+    TBA - TO BE ASSIGNED (85010): alt 998.6 km inc 99.4 deg ecc 0.0
+    TBA - TO BE ASSIGNED (85106): alt 999.2 km inc 100.1 deg ecc 0.0
