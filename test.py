@@ -142,6 +142,10 @@ class Test_generate_trajectory(unittest.TestCase):
         self.assertEqual(v[1], vout[1])
         self.assertEqual(v[2], vout[2])
 
+    def test_rotation(self):
+        ## TODO: Fill this test in
+        foo = 1
+
 class Test_get_JD(unittest.TestCase):
     def test_function(self):
         time = dt.datetime(1996,10,26,14,20,0,0)
