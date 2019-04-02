@@ -101,6 +101,12 @@ class Simulator:
             try:
                 obj = self.passQueue.get()
                 assert self.laserObject is not None
+
+                ## Do not include passes of non-debris
+                if not obj.deb:
+                    self.passQueue.task_done()
+                    continue
+
                 relPosition = obj.trajectoryPos - self.laserObject.trajectoryPos
                 relVelocity = obj.trajectoryVeloc - self.laserObject.trajectoryVeloc
 
@@ -155,29 +161,36 @@ if __name__ == "__main__":
 
     parse = args['parse_data']
     dataDir = 'Data'
-    savefile = 'satcat3_LEO.pickle'
-    if parse or savefile not in os.listdir(os.path.join(os.getcwd(),dataDir)):
+    savefile1 = 'satcat3_LEO_deb.pickle'
+    savefile2 = 'satcat3_LEO_obj.pickle'
+    if parse or savefile1 not in os.listdir(os.path.join(os.getcwd(),dataDir))\
+            or savefile2 not in os.listdir(os.path.join(os.getcwd(),dataDir)):
         print('Parsing tle file...')
         objects = parse_catalog(3)
 
         ## Throw out non-LEO objects
-        nonLEO = []
+        deb = []
+        sats = []
         for i in range(0, len(objects)):
             obj = objects[i]
             h = (obj.a - Re) / 1e3  # km
 
-            if h > 2000 or not obj.deb:
-                nonLEO.append(i)
+            if h < 2000:
+                if obj.deb:
+                    deb.append(obj)
+                else:
+                    sats.append(obj)
 
-        for i in sorted(nonLEO, reverse=True):
-            del objects[i]
-
-        with open(os.path.join(os.getcwd(),dataDir,savefile), 'wb') as f:
-            pickle.dump(objects, f)
+        with open(os.path.join(os.getcwd(),dataDir,savefile1), 'wb') as f:
+            pickle.dump(deb, f)
+        with open(os.path.join(os.getcwd(),dataDir,savefile2), 'wb') as f:
+            pickle.dump(sats, f)
     else:
-        print('Loading pickle file')
-        with open(os.path.join(os.getcwd(),dataDir,savefile), 'rb') as f:
-            objects = pickle.load(f)
+        print('Loading pickle files')
+        with open(os.path.join(os.getcwd(),dataDir,savefile1), 'rb') as f:
+            deb = pickle.load(f)
+        with open(os.path.join(os.getcwd(), dataDir, savefile2), 'rb') as f:
+            sats = pickle.load(f)
 
     ## Check that folders are made
     if not 'Plots' in os.listdir(os.getcwd()):
@@ -191,7 +204,7 @@ if __name__ == "__main__":
     ######################
 
     print('Starting sim...')
-    print('Running with {} pieces of debris'.format(len(objects)))
+    print('Running with {} pieces of debris and {} sats'.format(len(deb), len(sats)))
     numDays = 7
     startTime = dt.datetime(2019,3,27,17,00,00)
     endTime = startTime + dt.timedelta(days=numDays)
@@ -210,6 +223,7 @@ if __name__ == "__main__":
         worker.setDaemon(True)
         worker.start()
 
+    objects = deb + sats
     for obj in objects:
         simulator.trajQueue.put(obj)
 
@@ -218,18 +232,34 @@ if __name__ == "__main__":
         len(simulator.badTrajs))
     )
 
-    with open(os.path.join(os.getcwd(), dataDir, 'laserTLEObjects.pickle'), 'rb') as f:
-        laser_objs = pickle.load(f)
-
+    ## Select test laser objects
     lower_alt = 695
     upper_alt = 1005
     alt_delim = 5
-    lower_i = 0
-    upper_i = 100
+    lower_i = -1
+    upper_i = 101
     i_delim = 1
-    np_alt = np.linspace(lower_alt, upper_alt, int((upper_alt + alt_delim - lower_alt) / alt_delim))
-    np_inc = np.linspace(lower_i, upper_i, int((upper_i + i_delim - lower_i) / i_delim))
-    z = np.zeros([len(np_inc), len(np_alt)])
+    np_alt = np.linspace(lower_alt, upper_alt, int((upper_alt - lower_alt) / alt_delim)+1)
+    np_inc = np.linspace(lower_i, upper_i, int((upper_i - lower_i) / i_delim)+1)
+    uniq = np.zeros([len(np_inc), len(np_alt)])
+    tot = uniq
+
+    laser_objs = []
+    for alt in np_alt:
+        for inc in np_inc:
+            for obj in objects:
+                if 'TBA' in obj.satName or obj.deb:
+                    continue
+
+                h = (obj.a - Re) / 1000
+                i = math.degrees(obj.i)
+
+                if abs(h-alt) <= alt_delim/2 and abs(i-inc) <= i_delim/2:
+                    # print('{} ({}): alt {} km inc {} deg ecc {}'.format(
+                    #     obj.satName, obj.satNum, round(h, 1), round(i, 1), round(obj.e, 2)
+                    # ))
+                    laser_objs.append(obj)
+                    break
 
     Blues9.reverse()
 
@@ -254,10 +284,10 @@ if __name__ == "__main__":
         print('Laser Object: {}'.format(laser_obj.satName))
         uniquePasses = set([passes.iloc[i]['Number'] for i in range(0,len(passes))])
         print('Got {} passes, {} unique objects'.format(len(passes), len(uniquePasses)))
-        for i in range(0, len(passes)):
-            row = passes.iloc[i]
-            print('{}: {} seen {} km away'.format(
-                row['Time'].strftime(frmat),row['Object'], round(row['Distance [km]'],2)))
+        # for i in range(0, len(passes)):
+        #     row = passes.iloc[i]
+        #     print('{}: {} seen {} km away'.format(
+        #           row['Time'].strftime(frmat),row['Object'], round(row['Distance [km]'],2)))
 
         output_file('Plots/laserPasses_{}.html'.format(simulator.laserObject.satNum))
         source = ColumnDataSource(passes)
@@ -268,18 +298,33 @@ if __name__ == "__main__":
 
         alt = (simulator.laserObject.a - Re)/1000
         nearest_alt = int(alt // alt_delim) * alt_delim
+        # Very lowest sat in laser_obj rounds to 690 rather than 695
+        if nearest_alt < 695:
+            nearest_alt = 695
+
         nearest_inc = int(math.degrees(simulator.laserObject.i) // i_delim) * i_delim
 
         x_coord = np.where(np_alt == nearest_alt)[0][0]
         y_coord = np.where(np_inc == nearest_inc)[0][0]
-        z[y_coord][x_coord] += len(uniquePasses)
+        uniq[y_coord][x_coord] += len(uniquePasses)
+        tot[y_coord][x_coord] += len(passes)
 
     output_file('Plots/laserPasses_{}.html'.format(steps))
     p2 = figure(title='Debris Passes', x_axis_label='Altitude (km)', y_axis_label='Inclination (deg)',
                 x_range=(lower_alt, upper_alt), y_range=(lower_i, upper_i),
                 tooltips=[("Alt", "$x"), ("Inc", "$y"), ("Passes", "@image")])
-    cmap = LinearColorMapper(palette=Blues9, low=0, high=z.max())
-    p2.image(image=[z], x=lower_alt, y=lower_i, dw=upper_alt - lower_alt, dh=upper_i - lower_i, color_mapper=cmap)
+    cmap = LinearColorMapper(palette=Blues9, low=0, high=uniq.max())
+    p2.image(image=[uniq], x=lower_alt, y=lower_i, dw=upper_alt - lower_alt, dh=upper_i - lower_i, color_mapper=cmap)
     color_bar = ColorBar(color_mapper=cmap, location=(0, 0))
     p2.add_layout(color_bar, 'right')
-    show(p2)
+
+    p3 = figure(title='Total Passes', x_axis_label='Altitude (km)', y_axis_label='Inclination (deg)',
+                x_range=(lower_alt, upper_alt), y_range=(lower_i, upper_i),
+                tooltips=[("Alt", "$x"), ("Inc", "$y"), ("Passes", "@image")])
+    cmap = LinearColorMapper(palette=Blues9, low=0, high=tot.max())
+    p3.image(image=[tot], x=lower_alt, y=lower_i, dw=upper_alt - lower_alt, dh=upper_i - lower_i, color_mapper=cmap)
+    color_bar = ColorBar(color_mapper=cmap, location=(0, 0))
+    p3.add_layout(color_bar, 'right')
+
+    grid = gridplot([[p2,p3]])
+    show(grid)
