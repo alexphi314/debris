@@ -117,19 +117,17 @@ class Object:
         return r_teme, v_teme
 
     def get_eci_state(self, time):
+        """
+        At the specified time, return the state vector in ECI frame
+        :param datetime.datetime time: time of state vector
+        :return: numpy.array r_eci, numpy.array v_eci
+        """
         r_teme, v_teme = self.get_teme_state(time)
         r_teme = row2col(r_teme)
         v_teme = row2col(v_teme)
 
-        ## Get epoch time
-        tai = self.epoch + delta_at
-        tt = tai + dt.timedelta(seconds=32.184)
-
-        ttt = (get_jd(tt) - 2451545)/36525
-        r_eci, v_eci, aeci = eng.teme2eci(matlab.double(r_teme), matlab.double(v_teme), matlab.double([[0],[0],[0]]),
-                                          ttt, matlab.double([0]), matlab.double([0]),nargout=3)
-
-        return np.asarray(r_eci), np.asarray(v_eci)
+        r_eci, v_eci = teme2eci(r_teme, v_teme, time, delta_at)
+        return r_eci, v_eci
 
     def generate_trajectory(self, startTime, endTime, steps):
         """
@@ -290,6 +288,25 @@ def get_jd(time):
 
     JD = 367*yr - int((7*(yr+int((month+9)/12))/4)) + int(275*month/9) + day + 1721013.5 + ((sec/60+min)/60+hour)/24
     return JD
+
+def teme2eci(r_teme, v_teme, time, delta_at):
+    """
+    Convert input r and v vectors to ECI frame (j2000)
+    :param list r_teme: radius in teme, col vector format
+    :param list v_teme: velocity in teme, col vector format
+    :param datetime.datetime time: time of conversion
+    :param datetime.timedelta delta_at: difference from TAI to UT1
+    :return: numpy.array r, numpy.array v in ECI frame
+    """
+    ## Get epoch time
+    tai = time + delta_at
+    tt = tai + dt.timedelta(seconds=32.184)
+
+    ttt = (get_jd(tt) - 2451545) / 36525
+    r_eci, v_eci, aeci = eng.teme2eci(matlab.double(r_teme), matlab.double(v_teme), matlab.double([[0], [0], [0]]),
+                                      ttt, matlab.double([0]), matlab.double([0]), nargout=3)
+
+    return np.asarray(r_eci), np.asarray(v_eci)
 
 def row2col(vec):
     """
