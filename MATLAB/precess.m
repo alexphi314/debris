@@ -42,7 +42,7 @@
 
 function [prec,psia,wa,ea,xa] = precess ( ttt, opt );
 
-        sethelp;
+        %sethelp;
         
         % " to rad
         convrt = pi / (180.0*3600.0);
@@ -147,10 +147,10 @@ function [prec,psia,wa,ea,xa] = precess ( ttt, opt );
         z    = z     * convrt;
 %iauhelp='y';         
 %fprintf(1,'pr %11.7f  %11.7f  %11.7fdeg \n',zeta*180/pi,theta*180/pi,z*180/pi );
-        if (iauhelp == 'y')
-            fprintf(1,'pr %11.7f  %11.7f  %11.7f %11.7fdeg \n',psia*180/pi,wa*180/pi,ea*180/pi,xa*180/pi );
-            fprintf(1,'pr %11.7f  %11.7f  %11.7fdeg \n',zeta*180/pi,theta*180/pi,z*180/pi );
-        end;
+%        if (iauhelp == 'y')
+%            fprintf(1,'pr %11.7f  %11.7f  %11.7f %11.7fdeg \n',psia*180/pi,wa*180/pi,ea*180/pi,xa*180/pi );
+%            fprintf(1,'pr %11.7f  %11.7f  %11.7fdeg \n',zeta*180/pi,theta*180/pi,z*180/pi );
+%        end;
 
         if (strcmp(opt,'80')==1) % || (strcmp(opt,'50') == 1)
             coszeta  = cos(zeta);

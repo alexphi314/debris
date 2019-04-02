@@ -116,91 +116,8 @@ class Test_peri2eci(unittest.TestCase):
 
         assert_matrix_almost_equal(self,Q,Q_out)
 
-# class Test_is_in_sphere(unittest.TestCase):
-#     a = astroUtils.Re + 500e3
-#     o = math.pi / 2
-#     epoch = dt.datetime.now()
-#     e = 0
-#     kepElems = {
-#         'i': math.radians(45),
-#         'O': 0,
-#         'e': e,
-#         'wp': 0,
-#         'epoch': epoch,
-#         'o': math.pi / 2,
-#         'a': a,
-#         'satNum': 1,
-#         'deb': False,
-#         'satName': 'test'
-#     }
-#
-#     testObj = Object(kepElems=kepElems)
-#
-#     n = math.sqrt(astroUtils.MEW / math.pow(a, 3))
-#     E = 2 * math.atan(math.sqrt((1 - e) / (1 + e)) * math.tan(o / 2))
-#     M = E - e * math.sin(E)
-#     T = 2 * math.pi / n
-#
-#     if M > 2 * math.pi:
-#         M = M % 2 * math.pi
-#
-#     while M < 0:
-#         M += 2 * math.pi
-#
-#     timeSincePerigee = M / n
-#     perigeeTime = epoch - dt.timedelta(seconds=timeSincePerigee)
-#
-#     def greater_than_pt(self):
-#         testObj = self.testObj
-#         perigeeTime = self.perigeeTime
-#         T = self.T
-#
-#         realTime = perigeeTime + dt.timedelta(seconds=(3*T+T/2))
-#         orbitTime = T/2
-#         closestTime = orbitTime // 180 * 180
-#         self.assertEqual(closestTime, 2700)
-#         closestTimeIndex = int(closestTime / 180)
-#         self.assertEqual(closestTimeIndex, 15)
-#
-#         position = testObj._trajectory[closestTimeIndex, :]
-#         positionOut = testObj.get_eci_pos(realTime)
-#
-#         self.assertEqual(position[0],positionOut[0])
-#         self.assertEqual(position[1], positionOut[1])
-#         self.assertEqual(position[2], positionOut[2])
-#
-#         sphereSize = 100 #m
-#         laserPos = position - 100
-#         self.assertFalse(testObj.is_in_sphere(laserPos,realTime,sphereSize))
-#
-#         laserPos = position - 10
-#         self.assertTrue(testObj.is_in_sphere(laserPos, realTime, sphereSize))
-#
-#     def less_than_pt(self):
-#         testObj = self.testObj
-#         perigeeTime = self.perigeeTime
-#         T = self.T
-#
-#         realTime = perigeeTime + dt.timedelta(seconds=(-3 * T + T / 2))
-#         orbitTime = T / 2
-#         closestTime = orbitTime // 180 * 180
-#         self.assertEqual(closestTime, 2700)
-#         closestTimeIndex = int(closestTime / 180)
-#         self.assertEqual(closestTimeIndex, 15)
-#
-#         position = testObj._trajectory[closestTimeIndex, :]
-#         positionOut = testObj.get_eci_pos(realTime)
-#
-#         self.assertEqual(position[0], positionOut[0])
-#         self.assertEqual(position[1], positionOut[1])
-#         self.assertEqual(position[2], positionOut[2])
-#
-#         sphereSize = 100  # m
-#         laserPos = position - 100
-#         self.assertFalse(testObj.is_in_sphere(laserPos, realTime, sphereSize))
-
 class Test_generate_trajectory(unittest.TestCase):
-    def test_function(self):
+    def test_parse_trajectory(self):
         line0 = '0 VANGUARD 1'
         line1 = '1     5U 58002B   19075.71745479 -.00000160  00000-0 -17930-3 0  9998'
         line2 = '2     5  34.2430 201.2113 1845233  88.2396 292.7424 10.84775486155534'
@@ -216,7 +133,7 @@ class Test_generate_trajectory(unittest.TestCase):
         self.assertEqual(obj.trajectory.iloc[-1]['Times'], endTime)
         self.assertEqual(len(obj.trajectory['Times']),25)
 
-        r, v = obj.get_teme_state(startTime)
+        r, v = obj.get_eci_state(startTime)
         rout, vout = obj.parse_trajectory(0)
         self.assertEqual(r[0], rout[0])
         self.assertEqual(r[1], rout[1])

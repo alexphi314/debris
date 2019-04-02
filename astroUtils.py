@@ -1,12 +1,13 @@
 import math
 import datetime as dt
 import re
+import os
 
 import numpy as np
 import pandas as pd
 from sgp4.earth_gravity import wgs72
 from sgp4.io import twoline2rv
-import sys
+import matlab.engine
 
 MEW = 3986004.418e8 #m3/s2
 Re = 6378.37e3 # m
@@ -20,6 +21,10 @@ yp = math.radians(yp*(0.000028/0.1))
 delta_ut1 = dt.timedelta(seconds=-120.16e-3)
 
 delta_at = dt.timedelta(seconds=37)
+
+## Import MATLAB
+eng = matlab.engine.start_matlab()
+eng.addpath(os.getcwd()+'/MATLAB')
 
 class PropagationError(Exception):
     def __init__(self, msg):
@@ -113,16 +118,18 @@ class Object:
 
     def get_eci_state(self, time):
         r_teme, v_teme = self.get_teme_state(time)
+        r_teme = row2col(r_teme)
+        v_teme = row2col(v_teme)
 
         ## Get epoch time
         tai = self.epoch + delta_at
         tt = tai + dt.timedelta(seconds=32.184)
 
         ttt = (get_jd(tt) - 2451545)/36525
-        meaneps = 23.439291 - 0.0130042*ttt - 1.64e-7*math.pow(ttt,2) + 5.04e-7*math.pow(ttt,3) #deg
-        meaneps = math.radians(meaneps)
+        r_eci, v_eci, aeci = eng.teme2eci(matlab.double(r_teme), matlab.double(v_teme), matlab.double([[0],[0],[0]]),
+                                          ttt, matlab.double([0]), matlab.double([0]),nargout=3)
 
-        return r_eci, v_eci
+        return np.asarray(r_eci), np.asarray(v_eci)
 
     def generate_trajectory(self, startTime, endTime, steps):
         """
@@ -148,8 +155,8 @@ class Object:
             r, v = self.get_eci_state(time)
 
             self.trajectoryTimes.append(time)
-            self.trajectoryPos[indx,:] = r
-            self.trajectoryVeloc[indx,:] = v
+            self.trajectoryPos[indx,:] = np.transpose(r)
+            self.trajectoryVeloc[indx,:] = np.transpose(v)
 
         combined_rv = np.hstack((self.trajectoryPos, self.trajectoryVeloc))
         self.trajectory = pd.DataFrame(data=combined_rv, columns=['Posx','Posy','Posz','Velx','Vely','Velz'])
@@ -166,29 +173,6 @@ class Object:
         v = [self.trajectory.iloc[indx]['Velx'], self.trajectory.iloc[indx]['Vely'], self.trajectory.iloc[indx]['Velz']]
 
         return r, v
-
-    def is_in_sphere(self,laser_loc, time, sphere_size):
-        """
-        Given the location of the laser satellite, the time, and sphere size, calculates if obj is in sphere
-        :param list laser_loc: location of laser in ECI [x,y,z] [m]
-        :param datetime.datetime time: time in UTC
-        :param float sphere_size: radius of targeting sphere [m]
-        :return: bool in: True if obj is in the sphere
-        """
-
-        ## Find object location at time
-        closestPoint, vPoint = self.get_eci_state(time)
-
-        ## Compute Distance
-        dx = laser_loc[0] - closestPoint[0]
-        dy = laser_loc[1] - closestPoint[1]
-        dz = laser_loc[2] - closestPoint[2]
-        d = math.sqrt(math.pow(dx,2) + math.pow(dy,2) + math.pow(dz,2))
-
-        if d < sphere_size:
-            return True
-
-        return False
 
 def solve_kepler(M, e):
     """
@@ -306,3 +290,13 @@ def get_jd(time):
 
     JD = 367*yr - int((7*(yr+int((month+9)/12))/4)) + int(275*month/9) + day + 1721013.5 + ((sec/60+min)/60+hour)/24
     return JD
+
+def row2col(vec):
+    """
+    Convert 3 element vector from row into column
+    :param numpy.array vec: row vector to rotate
+    :return: list col
+    """
+    col = [[vec[0]], [vec[1]], [vec[2]]]
+
+    return col
