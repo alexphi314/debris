@@ -11,6 +11,16 @@ import sys
 MEW = 3986004.418e8 #m3/s2
 Re = 6378.37e3 # m
 
+## 4/2/19
+xp = 48.7e-3 #arcsec
+yp = 384.1e-3 #arcsec
+
+xp = math.radians(xp*(0.000028/0.1))
+yp = math.radians(yp*(0.000028/0.1))
+delta_ut1 = dt.timedelta(seconds=-120.16e-3)
+
+delta_at = dt.timedelta(seconds=37)
+
 class PropagationError(Exception):
     def __init__(self, msg):
         self.msg = msg
@@ -102,8 +112,15 @@ class Object:
         return r_teme, v_teme
 
     def get_eci_state(self, time):
-        ## TODO: Actually rotate from TEME to ECI
-        r_eci, v_eci = self.get_teme_state(time)
+        r_teme, v_teme = self.get_teme_state(time)
+
+        ## Get epoch time
+        tai = self.epoch + delta_at
+        tt = tai + dt.timedelta(seconds=32.184)
+
+        ttt = (get_jd(tt) - 2451545)/36525
+        meaneps = 23.439291 - 0.0130042*ttt - 1.64e-7*math.pow(ttt,2) + 5.04e-7*math.pow(ttt,3) #deg
+        meaneps = math.radians(meaneps)
 
         return r_eci, v_eci
 
@@ -271,3 +288,21 @@ def parse_catalog(format):
             objects[int(i/format)] = Object(tle_str=str)
 
     return objects
+
+def get_jd(time):
+    """
+    Return julian date at given time
+    :param datetime.datetime time: time at which to calculate JD
+    :return: float JD
+    """
+
+    ##TODO: Account for leapseconds
+    yr = time.year
+    month = time.month
+    day = time.day
+    hour = time.hour
+    min = time.minute
+    sec = time.second
+
+    JD = 367*yr - int((7*(yr+int((month+9)/12))/4)) + int(275*month/9) + day + 1721013.5 + ((sec/60+min)/60+hour)/24
+    return JD

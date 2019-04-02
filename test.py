@@ -225,5 +225,12 @@ class Test_generate_trajectory(unittest.TestCase):
         self.assertEqual(v[1], vout[1])
         self.assertEqual(v[2], vout[2])
 
+class Test_get_JD(unittest.TestCase):
+    def test_function(self):
+        time = dt.datetime(1996,10,26,14,20,0,0)
+        JD = astroUtils.get_jd(time)
+
+        self.assertAlmostEqual(JD,2450383.09722222,8)
+
 if __name__ == '__main__':
     unittest.main()
