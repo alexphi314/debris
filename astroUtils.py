@@ -114,7 +114,7 @@ class Object:
         if self.sgpObject.error != 0:
             raise PropagationError(self.sgpObject.error_message)
 
-        return r_teme, v_teme
+        return np.array(r_teme)[np.newaxis], np.array(v_teme)[np.newaxis]
 
     def get_eci_state(self, time):
         """
@@ -123,13 +123,12 @@ class Object:
         :return: numpy.array r_eci, numpy.array v_eci
         """
         r_teme, v_teme = self.get_teme_state(time)
-        r_teme = row2col(r_teme)
-        v_teme = row2col(v_teme)
 
-        r_eci, v_eci = teme2eci(r_teme, v_teme, time, delta_at)
-        return r_eci, v_eci
+        r_eci, v_eci = teme2eci(r_teme.T, v_teme.T, time, delta_at)
 
-    def generate_trajectory(self, startTime, endTime, steps):
+        return r_eci.T, v_eci.T
+
+    def generate_trajectory(self, startTime, endTime, steps, useECI = True):
         """
         Generate a trajectory between startTime and endTime in interval time steps
         :param datetime.datetime startTime: start of trajectory (inclusive)
@@ -150,11 +149,14 @@ class Object:
         for indx, deltaSeconds in enumerate(times):
             time = startTime + dt.timedelta(seconds=deltaSeconds)
 
-            r, v = self.get_eci_state(time)
+            if useECI:
+                r, v = self.get_eci_state(time)
+            else:
+                r, v = self.get_teme_state(time)
 
             self.trajectoryTimes.append(time)
-            self.trajectoryPos[indx,:] = np.transpose(r)
-            self.trajectoryVeloc[indx,:] = np.transpose(v)
+            self.trajectoryPos[indx,:] = r
+            self.trajectoryVeloc[indx,:] = v
 
         combined_rv = np.hstack((self.trajectoryPos, self.trajectoryVeloc))
         self.trajectory = pd.DataFrame(data=combined_rv, columns=['Posx','Posy','Posz','Velx','Vely','Velz'])
@@ -292,8 +294,8 @@ def get_jd(time):
 def teme2eci(r_teme, v_teme, time, delta_at):
     """
     Convert input r and v vectors to ECI frame (j2000)
-    :param list r_teme: radius in teme, col vector format
-    :param list v_teme: velocity in teme, col vector format
+    :param numpy.array r_teme: radius in teme, col vector format
+    :param numpy.array v_teme: velocity in teme, col vector format
     :param datetime.datetime time: time of conversion
     :param datetime.timedelta delta_at: difference from TAI to UT1
     :return: numpy.array r, numpy.array v in ECI frame
@@ -303,8 +305,9 @@ def teme2eci(r_teme, v_teme, time, delta_at):
     tt = tai + dt.timedelta(seconds=32.184)
 
     ttt = (get_jd(tt) - 2451545) / 36525
-    r_eci, v_eci, aeci = eng.teme2eci(matlab.double(r_teme), matlab.double(v_teme), matlab.double([[0], [0], [0]]),
-                                      ttt, matlab.double([0]), matlab.double([0]), nargout=3)
+    r_eci, v_eci, aeci = eng.teme2eci(matlab.double(r_teme.tolist()), matlab.double(v_teme.tolist()),
+                                      matlab.double([[0], [0], [0]]), ttt, matlab.double([0]),
+                                      matlab.double([0]), nargout=3)
 
     return np.asarray(r_eci), np.asarray(v_eci)
 

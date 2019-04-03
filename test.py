@@ -24,6 +24,11 @@ def assert_matrix_almost_equal(testCase,true,test):
         for j in range(0,c):
             testCase.assertAlmostEqual(test[i][j],true[i][j],2)
 
+def assert_vector_almost_equal(testCase,true,test):
+
+    for i in range(0,3):
+        testCase.assertAlmostEqual(test[i],true[i],2)
+
 class Test_object_init(unittest.TestCase):
     sat_num = 5
     epoch = '2019-75 17:13:8.09380'
@@ -134,6 +139,8 @@ class Test_generate_trajectory(unittest.TestCase):
         self.assertEqual(len(obj.trajectory['Times']),25)
 
         r, v = obj.get_eci_state(startTime)
+        r = r.tolist()[0]
+        v = v.tolist()[0]
         rout, vout = obj.parse_trajectory(0)
         self.assertEqual(r[0], rout[0])
         self.assertEqual(r[1], rout[1])
@@ -142,16 +149,32 @@ class Test_generate_trajectory(unittest.TestCase):
         self.assertEqual(v[1], vout[1])
         self.assertEqual(v[2], vout[2])
 
-    def test_rotation(self):
-        ## TODO: Fill this test in
-        foo = 1
-
 class Test_get_JD(unittest.TestCase):
     def test_function(self):
         time = dt.datetime(1996,10,26,14,20,0,0)
         JD = astroUtils.get_jd(time)
 
         self.assertAlmostEqual(JD,2450383.09722222,8)
+
+class Test_teme2eci(unittest.TestCase):
+    def test_function(self):
+        tle = '{}\n{}\n{}'.format('TEST','1 00005U 58002B   00179.78495062  .00000023  00000-0  28098-4 0  4753',
+                                  '2 00005  34.2682 348.7242 1859667 331.7664  19.3264 10.82419157413667')
+        obj = Object(tle)
+        time = obj.epoch + dt.timedelta(days=3)
+
+        r_teme = [[-9060.47373569], [4658.70952502], [813.68673153]] #km
+        v_teme = [[-2.232832783], [-4.110453490], [-3.157345433]] #km/s
+
+        r_eci = [[-9059.9413786],[4659.6972000],[813.9588875]]
+        v_eci = [[-2.233348094],[-4.110136162],[-3.157394074]]
+
+        r_eci_out, v_eci_out = astroUtils.teme2eci(np.array(r_teme), np.array(v_teme), time, dt.timedelta(seconds=32))
+
+        r_eci = np.array(r_eci).T.tolist()[0]
+        v_eci = np.array(v_eci).T.tolist()[0]
+        assert_vector_almost_equal(self, r_eci, r_eci_out.T.tolist()[0])
+        assert_vector_almost_equal(self, v_eci, v_eci_out.T.tolist()[0])
 
 if __name__ == '__main__':
     unittest.main()
