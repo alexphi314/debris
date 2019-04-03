@@ -149,6 +149,23 @@ class Test_generate_trajectory(unittest.TestCase):
         self.assertEqual(v[1], vout[1])
         self.assertEqual(v[2], vout[2])
 
+        ## Test TEME trajectory
+        obj.generate_trajectory(startTime, endTime, steps, False)
+        self.assertEqual(obj.trajectory.iloc[0]['Times'], startTime)
+        self.assertEqual(obj.trajectory.iloc[-1]['Times'], endTime)
+        self.assertEqual(len(obj.trajectory['Times']), 25)
+
+        r, v = obj.get_teme_state(startTime)
+        r = r.tolist()[0]
+        v = v.tolist()[0]
+        rout, vout = obj.parse_trajectory(0)
+        self.assertEqual(r[0], rout[0])
+        self.assertEqual(r[1], rout[1])
+        self.assertEqual(r[2], rout[2])
+        self.assertEqual(v[0], vout[0])
+        self.assertEqual(v[1], vout[1])
+        self.assertEqual(v[2], vout[2])
+
 class Test_get_JD(unittest.TestCase):
     def test_function(self):
         time = dt.datetime(1996,10,26,14,20,0,0)

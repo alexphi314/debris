@@ -42,11 +42,12 @@ class Simulator:
         '2   900 090.1517 021.2926 0026700 330.0700 101.6591 13.73206334708891'
     )
     laserRange = 100e3 #m
-    def __init__(self, startTime, endTime, steps):
+    def __init__(self, startTime, endTime, steps, useECI):
         """
         :param datetime.datetime startTime: simulation start time
         :param datetime.datetime endTime: simulation end time
         :param int steps: number of trajectory steps
+        :param bool useECI: work in ECI frame if true, teme if False
         """
 
         ## Define trajectory variables
@@ -54,8 +55,9 @@ class Simulator:
         self.startTime = startTime
         self.endTime = endTime
         self.steps = steps
+        self.useECI = useECI
         self.badTrajs = []
-        self.dfCols = ['Time', 'Object', 'Distance [km]', 'Number']
+        self.dfCols = ['Time', 'Object', 'Distance [km]', 'Number', 'Rel V', 'Deb I']
 
         self.passQueue = queue.Queue()
         self.aLock = threading.Lock()
@@ -71,7 +73,7 @@ class Simulator:
 
 
         self.laserObject = obj
-        self.laserObject.generate_trajectory(self.startTime, self.endTime, self.steps)
+        self.laserObject.generate_trajectory(self.startTime, self.endTime, self.steps, self.useECI)
 
         ## Define laser pass variables
         self._laserPasses = pd.DataFrame([], columns=self.dfCols)
@@ -84,7 +86,7 @@ class Simulator:
         while True:
             try:
                 obj = self.trajQueue.get()
-                obj.generate_trajectory(self.startTime, self.endTime, self.steps)
+                obj.generate_trajectory(self.startTime, self.endTime, self.steps, self.useECI)
                 #self.message('Trajectory generated for {}'.format(obj.satName))
             except PropagationError as e:
                 self.message('Got Propagation Error: {}'.format(e.msg))
@@ -111,8 +113,10 @@ class Simulator:
                 relVelocity = obj.trajectoryVeloc - self.laserObject.trajectoryVeloc
 
                 relDist = np.linalg.norm(relPosition, axis=1)
+                relVel = np.linalg.norm(relVelocity, axis=1)
                 indices = np.where(relDist < self.laserRange)
                 smallDist = relDist[indices]/1000 #convert to km
+                smallVel = relVel[indices]/1000 #conver to km/s
 
                 if len(smallDist) > 0:
                     tempDf = pd.DataFrame(columns=self.dfCols)
@@ -120,6 +124,8 @@ class Simulator:
                     tempDf['Time'] = [obj.trajectoryTimes[i] for i in indices[0]]
                     tempDf['Object'] = obj.satName
                     tempDf['Number'] = obj.satNum
+                    tempDf['Rel V'] = smallVel
+                    tempDf['Deb I'] = math.degrees(obj.i)
 
                     assert len([obj.trajectoryTimes[i] for i in indices[0]]) == len(smallDist)
 
@@ -209,8 +215,9 @@ if __name__ == "__main__":
     startTime = dt.datetime(2019,3,27,17,00,00)
     endTime = startTime + dt.timedelta(days=numDays)
     steps = numDays*3*24
+    useECI = False
 
-    simulator = Simulator(startTime, endTime, steps)
+    simulator = Simulator(startTime, endTime, steps, useECI)
 
     for i in range(1,5):
         worker = threading.Thread(target=simulator.gen_trajectories,
@@ -239,10 +246,20 @@ if __name__ == "__main__":
     lower_i = -1
     upper_i = 101
     i_delim = 1
+    lower_v = 0
+    upper_v = 15
+    v_delim = 0.25
+    lower_d = 0
+    upper_d = 100
+    d_delim = 1
     np_alt = np.linspace(lower_alt, upper_alt, int((upper_alt - lower_alt) / alt_delim)+1)
     np_inc = np.linspace(lower_i, upper_i, int((upper_i - lower_i) / i_delim)+1)
+    np_vel = np.linspace(lower_v, upper_v, int((upper_v - lower_v) / v_delim)+1)
+    np_dist = np.linspace(lower_d, upper_d, int((upper_d - lower_d)/ d_delim)+1)
     uniq = np.zeros([len(np_inc), len(np_alt)])
     tot = uniq
+    vel = np.zeros([len(np_vel), len(np_dist)])
+    inc_arry = np.zeros([len(np_inc), len(np_inc)])
 
     laser_objs = []
     for alt in np_alt:
@@ -289,11 +306,11 @@ if __name__ == "__main__":
         #     print('{}: {} seen {} km away'.format(
         #           row['Time'].strftime(frmat),row['Object'], round(row['Distance [km]'],2)))
 
-        output_file('Plots/laserPasses_{}.html'.format(simulator.laserObject.satNum))
-        source = ColumnDataSource(passes)
-        p = figure(title='Laser Passes Over Time', x_axis_label='Time', x_axis_type='datetime',y_axis_label='Distance [km]',
-                   tooltips=[('Time','$x'),('Distance','$y'),('Object','@Object')])
-        p.scatter(x='Time',y='Distance [km]',source=source)
+        # output_file('Plots/laserPasses_{}.html'.format(simulator.laserObject.satNum))
+        # source = ColumnDataSource(passes)
+        # p = figure(title='Laser Passes Over Time', x_axis_label='Time', x_axis_type='datetime',y_axis_label='Distance [km]',
+        #            tooltips=[('Time','$x'),('Distance','$y'),('Object','@Object')])
+        # p.scatter(x='Time',y='Distance [km]',source=source)
 
 
         alt = (simulator.laserObject.a - Re)/1000
@@ -308,6 +325,19 @@ if __name__ == "__main__":
         y_coord = np.where(np_inc == nearest_inc)[0][0]
         uniq[y_coord][x_coord] += len(uniquePasses)
         tot[y_coord][x_coord] += len(passes)
+
+        for indx, row in passes.iterrows():
+            nearest_dist = int(row['Distance [km]'] // d_delim) * d_delim
+            nearest_deb_i = int(row['Deb I'] // i_delim) * i_delim
+            nearest_vel = int(row['Rel V'] // v_delim) * v_delim
+
+            dist_coord = np.where(np_dist == nearest_dist)[0][0]
+            deb_inc_coord = np.where(np_inc == nearest_deb_i)[0][0]
+            vel_coord = np.where(np_vel == nearest_vel)[0][0]
+
+            vel[vel_coord][dist_coord]+=1
+            inc_arry[deb_inc_coord][y_coord]+=1
+
 
     output_file('Plots/laserPasses_{}.html'.format(steps))
     p2 = figure(title='Debris Passes', x_axis_label='Altitude (km)', y_axis_label='Inclination (deg)',
@@ -326,5 +356,21 @@ if __name__ == "__main__":
     color_bar = ColorBar(color_mapper=cmap, location=(0, 0))
     p3.add_layout(color_bar, 'right')
 
-    grid = gridplot([[p2,p3]])
+    p4 = figure(title='Rel V vs. Distance', x_axis_label='Distance (km)', y_axis_label='Relative Velocity (km/s)',
+                x_range=(lower_d, upper_d), y_range=(lower_v, upper_v),
+                tooltips=[("Dist", "$x"), ("Vel", "$y"), ("Number", "@image")])
+    cmap = LinearColorMapper(palette=Blues9, low=0, high=vel.max())
+    p4.image(image=[vel], x=lower_d, y=lower_v, dw=upper_d-lower_d, dh=upper_v-lower_v, color_mapper=cmap)
+    color_bar = ColorBar(color_mapper=cmap, location=(0, 0))
+    p4.add_layout(color_bar, 'right')
+
+    p5 = figure(title='Obj Inc vs. Laser Inc', x_axis_label='Laser Inclination (deg)', y_axis_label='Debris Inclination (deg)',
+                x_range=(lower_i, upper_i), y_range=(lower_i, upper_i),
+                tooltips=[("Laser Inc", "$x"), ("Deb Inc", "$y"), ("Number", "@image")])
+    cmap = LinearColorMapper(palette=Blues9, low=0, high=inc_arry.max())
+    p5.image(image=[inc_arry], x=lower_i, y=lower_i, dw=upper_i-lower_i, dh=upper_i-lower_i, color_mapper=cmap)
+    color_bar = ColorBar(color_mapper=cmap, location=(0, 0))
+    p5.add_layout(color_bar, 'right')
+
+    grid = gridplot([[p2,p3],[p4,p5]])
     show(grid)
