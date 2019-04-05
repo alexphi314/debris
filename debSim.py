@@ -37,10 +37,6 @@ class Simulator:
     """
     Simulator manager class
     """
-    tempLaserTLE = "LASER\n{}\n{}".format(
-        '1   900U 64063C   19085.91254635 +.00000212 +00000-0 +21859-3 0  9999',
-        '2   900 090.1517 021.2926 0026700 330.0700 101.6591 13.73206334708891'
-    )
     laserRange = 100e3 #m
     def __init__(self, startTime, endTime, steps, useECI):
         """
@@ -153,6 +149,31 @@ class Simulator:
         """
         print('{}: {}'.format(threading.current_thread().name, msg))
 
+def get_bounds(arry, x_arry, y_arry):
+    """
+    Given arry, return the bounds for x and y to set the plot (i.e. find the lowest and highest non-zero values of x
+    and y in the data).
+    :param numpy.array arry: data array
+    :param numpy.array x_arry: range of x values
+    :param numpy.array y_arry: range of y values
+    :return: tuple x_bounds, tuple y_bounds in format (min_val, max_val)
+    """
+    bounds = arry.nonzero()
+    min_y = bounds[0][0]
+    max_y = bounds[0][-1]
+    min_x = bounds[1][0]
+    max_x = bounds[1][-1]
+
+    if min_x == max_x:
+        min_x = 0
+        max_x = -1
+
+    if min_y == max_y:
+        min_y = 0
+        max_y = -1
+
+    return (x_arry[min_x], x_arry[max_x]), (y_arry[min_y], y_arry[max_y])
+
 if __name__ == "__main__":
 
     #####################################
@@ -163,9 +184,12 @@ if __name__ == "__main__":
     optional = parser.add_argument_group('optional arguments')
     optional.add_argument("--parse_data", "-p", help="Re-parse sat cat file, rather than read stored data",
                           required=False, action="store_true", default=False)
+    optional.add_argument("--sweep_objs", "-s", help="Sweep through satellites for potential lasers",
+                          required=False, action="store_true", default=False)
     args = vars(parser.parse_args())
 
     parse = args['parse_data']
+    sweep = args['sweep_objs']
     dataDir = 'Data'
     savefile1 = 'satcat3_LEO_deb.pickle'
     savefile2 = 'satcat3_LEO_obj.pickle'
@@ -214,7 +238,7 @@ if __name__ == "__main__":
     numDays = 7
     startTime = dt.datetime(2019,3,27,17,00,00)
     endTime = startTime + dt.timedelta(days=numDays)
-    steps = numDays*3*24
+    steps = numDays*6*24
     useECI = False
 
     simulator = Simulator(startTime, endTime, steps, useECI)
@@ -242,12 +266,12 @@ if __name__ == "__main__":
     ## Select test laser objects
     lower_alt = 695
     upper_alt = 1005
-    alt_delim = 5
+    alt_delim = 1
     lower_i = -1
-    upper_i = 101
+    upper_i = 181 #boundaries for actual debris objects
     i_delim = 1
     lower_v = 0
-    upper_v = 15
+    upper_v = 25
     v_delim = 0.25
     lower_d = 0
     upper_d = 100
@@ -262,21 +286,51 @@ if __name__ == "__main__":
     inc_arry = np.zeros([len(np_inc), len(np_inc)])
 
     laser_objs = []
-    for alt in np_alt:
-        for inc in np_inc:
-            for obj in objects:
-                if 'TBA' in obj.satName or obj.deb:
-                    continue
+    if sweep:
+        i_sat_bounds = [97, 100]  # boundary inclinations for laser objects
+        alt_sat_bounds = [810, 830]
+        np_alt_sat = np.linspace(alt_sat_bounds[0], alt_sat_bounds[1],
+                                 int((alt_sat_bounds[1] - alt_sat_bounds[0]) / 1) + 1)
+        np_inc_sat = np.linspace(i_sat_bounds[0], i_sat_bounds[1], int((upper_i - lower_i) / i_delim) + 1)
 
-                h = (obj.a - Re) / 1000
-                i = math.degrees(obj.i)
+        for alt in np_alt_sat:
+            for inc in np_inc_sat:
+                for obj in objects:
+                    if 'TBA' in obj.satName or obj.deb:
+                        continue
 
-                if abs(h-alt) <= alt_delim/2 and abs(i-inc) <= i_delim/2:
-                    # print('{} ({}): alt {} km inc {} deg ecc {}'.format(
-                    #     obj.satName, obj.satNum, round(h, 1), round(i, 1), round(obj.e, 2)
-                    # ))
-                    laser_objs.append(obj)
-                    break
+                    h = (obj.a - Re) / 1000
+                    i = math.degrees(obj.i)
+
+                    if abs(h-alt) <= alt_delim/2 and abs(i-inc) <= i_delim/2 and obj not in laser_objs:
+                        # print('{} ({}): alt {} km inc {} deg ecc {}'.format(
+                        #     obj.satName, obj.satNum, round(h, 1), round(i, 1), round(obj.e, 2)
+                        # ))
+                        laser_objs.append(obj)
+                        break
+
+    else:
+        target_a = 816
+        target_i = 98
+        a_tol = 1
+        i_tol = 0.5
+        # for obj in objects:
+        #     if 'TBA' in obj.satName or obj.deb:
+        #         continue
+        #
+        #     h = (obj.a - Re) / 1000
+        #     i = math.degrees(obj.i)
+        #
+        #     if abs(h - target_a) <= a_tol and abs(i - target_i) <= i_tol and obj not in laser_objs:
+        #         # print('{} ({}): alt {} km inc {} deg ecc {}'.format(
+        #         #     obj.satName, obj.satNum, round(h, 1), round(i, 1), round(obj.e, 2)
+        #         # ))
+        #         laser_objs.append(obj)
+
+        # Target Laser Object: STERKH 2
+        for obj in objects:
+            if obj.satNum == 35866:
+                laser_objs.append(obj)
 
     Blues9.reverse()
 
@@ -298,7 +352,7 @@ if __name__ == "__main__":
 
         passes = simulator.get_passes()
         print('')
-        print('Laser Object: {}'.format(laser_obj.satName))
+        print('Laser Object: {} ({})'.format(laser_obj.satName, laser_obj.satNum))
         uniquePasses = set([passes.iloc[i]['Number'] for i in range(0,len(passes))])
         print('Got {} passes, {} unique objects'.format(len(passes), len(uniquePasses)))
         # for i in range(0, len(passes)):
@@ -339,9 +393,19 @@ if __name__ == "__main__":
             inc_arry[deb_inc_coord][y_coord]+=1
 
 
+    uniq_x, uniq_y = get_bounds(uniq, np_alt, np_inc)
+    tot_x, tot_y = get_bounds(tot, np_alt, np_inc)
+    vel_x, vel_y = get_bounds(vel, np_dist, np_vel)
+    inc_x, inc_y = get_bounds(inc_arry, np_inc, np_inc)
+
+    print('Uniq: x ({} {}) y ({} {})'.format(uniq_x[0], uniq_x[1], uniq_y[0], uniq_y[1]))
+    print('Tot: x ({} {}) y ({} {})'.format(tot_x[0], tot_x[1], tot_y[0], tot_y[1]))
+    print('Vel: x ({} {}) y ({} {})'.format(vel_x[0], vel_x[1], vel_y[0], vel_y[1]))
+    print('Inc: x ({} {}) y ({} {})'.format(inc_x[0], inc_x[1], inc_y[0], inc_y[1]))
+
     output_file('Plots/laserPasses_{}.html'.format(steps))
     p2 = figure(title='Debris Passes', x_axis_label='Altitude (km)', y_axis_label='Inclination (deg)',
-                x_range=(lower_alt, upper_alt), y_range=(lower_i, upper_i),
+                x_range=(uniq_x[0], uniq_x[1]), y_range=(uniq_y[0], uniq_y[1]),
                 tooltips=[("Alt", "$x"), ("Inc", "$y"), ("Passes", "@image")])
     cmap = LinearColorMapper(palette=Blues9, low=0, high=uniq.max())
     p2.image(image=[uniq], x=lower_alt, y=lower_i, dw=upper_alt - lower_alt, dh=upper_i - lower_i, color_mapper=cmap)
@@ -349,7 +413,7 @@ if __name__ == "__main__":
     p2.add_layout(color_bar, 'right')
 
     p3 = figure(title='Total Passes', x_axis_label='Altitude (km)', y_axis_label='Inclination (deg)',
-                x_range=(lower_alt, upper_alt), y_range=(lower_i, upper_i),
+                x_range=(tot_x[0], tot_x[1]), y_range=(tot_y[0], tot_y[1]),
                 tooltips=[("Alt", "$x"), ("Inc", "$y"), ("Passes", "@image")])
     cmap = LinearColorMapper(palette=Blues9, low=0, high=tot.max())
     p3.image(image=[tot], x=lower_alt, y=lower_i, dw=upper_alt - lower_alt, dh=upper_i - lower_i, color_mapper=cmap)
@@ -357,7 +421,7 @@ if __name__ == "__main__":
     p3.add_layout(color_bar, 'right')
 
     p4 = figure(title='Rel V vs. Distance', x_axis_label='Distance (km)', y_axis_label='Relative Velocity (km/s)',
-                x_range=(lower_d, upper_d), y_range=(lower_v, upper_v),
+                x_range=(vel_x[0], vel_x[1]), y_range=(vel_y[0], vel_y[1]),
                 tooltips=[("Dist", "$x"), ("Vel", "$y"), ("Number", "@image")])
     cmap = LinearColorMapper(palette=Blues9, low=0, high=vel.max())
     p4.image(image=[vel], x=lower_d, y=lower_v, dw=upper_d-lower_d, dh=upper_v-lower_v, color_mapper=cmap)
@@ -365,7 +429,7 @@ if __name__ == "__main__":
     p4.add_layout(color_bar, 'right')
 
     p5 = figure(title='Obj Inc vs. Laser Inc', x_axis_label='Laser Inclination (deg)', y_axis_label='Debris Inclination (deg)',
-                x_range=(lower_i, upper_i), y_range=(lower_i, upper_i),
+                x_range=(inc_x[0], inc_x[1]), y_range=(inc_y[0], inc_y[1]),
                 tooltips=[("Laser Inc", "$x"), ("Deb Inc", "$y"), ("Number", "@image")])
     cmap = LinearColorMapper(palette=Blues9, low=0, high=inc_arry.max())
     p5.image(image=[inc_arry], x=lower_i, y=lower_i, dw=upper_i-lower_i, dh=upper_i-lower_i, color_mapper=cmap)
