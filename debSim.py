@@ -16,7 +16,7 @@ from bokeh.models import ColumnDataSource, ColorBar, LinearColorMapper
 from bokeh.palettes import Blues9
 from bokeh.layouts import gridplot
 
-from astroUtils import parse_catalog, Re, PropagationError, Object
+from astroUtils import parse_catalog, Re, PropagationError, Object, Laser
 
 frmat = '%Y-%m-%d %H:%M:%S'
 

@@ -42,6 +42,7 @@ class Object:
         :param string tle_str: tle in string format, used to define object params
         """
 
+        self.tle = tle_str
         lines = tle_str.split('\n')
         line0 = lines[0]
         line1 = lines[1]
@@ -173,6 +174,18 @@ class Object:
         v = [self.trajectory.iloc[indx]['Velx'], self.trajectory.iloc[indx]['Vely'], self.trajectory.iloc[indx]['Velz']]
 
         return r, v
+
+class Laser(Object):
+    """
+    Object class specifically for a Laser
+    """
+    def __init__(self, tle):
+        """
+        Init class
+        :param string tle: input tle that defines parameters
+        """
+
+        super().__init__(tle)
 
 def solve_kepler(M, e):
     """
