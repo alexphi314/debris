@@ -333,3 +333,55 @@ def row2col(vec):
     col = [[vec[0]], [vec[1]], [vec[2]]]
 
     return col
+
+def rnd(num, delim):
+    """
+    Rounding function to round number to nearest even value divisible by delim
+    :param float num: number to round
+    :param float delim: difference between even values
+    :return: int rounded
+    """
+
+    lower_even = int(num // delim) * delim
+    upper_even = lower_even + delim
+
+    if abs(num-lower_even) < abs(num-upper_even):
+        return int(lower_even)
+
+    return int(upper_even)
+
+def get_bounds(arry, x_arry, y_arry):
+    """
+    Given arry, return the bounds for x and y to set the plot (i.e. find the lowest and highest non-zero values of x
+    and y in the data).
+    :param numpy.array arry: data array
+    :param numpy.array x_arry: range of x values
+    :param numpy.array y_arry: range of y values
+    :return: tuple x_bounds, tuple y_bounds in format (min_val, max_val)
+    """
+    bounds = arry.nonzero()
+    bounds[0].sort()
+    bounds[1].sort()
+    if len(bounds[0]) == 0:
+        min_y = 0
+        max_y = -1
+    else:
+        min_y = bounds[0][0]
+        max_y = bounds[0][-1]
+
+    if len(bounds[1]) == 0:
+        min_x = 0
+        max_x = -1
+    else:
+        min_x = bounds[1][0]
+        max_x = bounds[1][-1]
+
+    if min_x == max_x:
+        min_x = 0
+        max_x = -1
+
+    if min_y == max_y:
+        min_y = 0
+        max_y = -1
+
+    return (x_arry[min_x], x_arry[max_x]), (y_arry[min_y], y_arry[max_y])

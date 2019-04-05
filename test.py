@@ -193,5 +193,67 @@ class Test_teme2eci(unittest.TestCase):
         assert_vector_almost_equal(self, r_eci, r_eci_out.T.tolist()[0])
         assert_vector_almost_equal(self, v_eci, v_eci_out.T.tolist()[0])
 
+class Test_rnd(unittest.TestCase):
+    def test_function(self):
+
+        rounded = astroUtils.rnd(10,5)
+        self.assertEqual(rounded, 10)
+
+        rounded = astroUtils.rnd(12.5,5)
+        self.assertEqual(rounded,15)
+
+        rounded = astroUtils.rnd(12,5)
+        self.assertEqual(rounded,10)
+
+        rounded = astroUtils.rnd(13,2)
+        self.assertEqual(rounded,14)
+
+        rounded = astroUtils.rnd(13,5)
+        self.assertEqual(rounded,15)
+
+        rounded = astroUtils.rnd(13,13)
+        self.assertEqual(rounded,13)
+
+class Test_get_bounds(unittest.TestCase):
+    def test_function(self):
+
+        x = [0,10,20,30,40,50,60,70,80,90,100]
+        y = [0,1,2,3,4,5,6,7,8,9,10]
+        data = np.zeros([len(y),len(x)])
+
+        xb, yb = astroUtils.get_bounds(data,x,y)
+        self.assertEqual(xb[0],0)
+        self.assertEqual(xb[1], 100)
+        self.assertEqual(yb[0], 0)
+        self.assertEqual(yb[1], 10)
+
+        data[3][4] = 5
+        xb, yb = astroUtils.get_bounds(data, x, y)
+        self.assertEqual(xb[0], 0)
+        self.assertEqual(xb[1], 100)
+        self.assertEqual(yb[0], 0)
+        self.assertEqual(yb[1], 10)
+
+        data[7][8] = 10
+        xb, yb = astroUtils.get_bounds(data, x, y)
+        self.assertEqual(xb[0], 40)
+        self.assertEqual(xb[1], 80)
+        self.assertEqual(yb[0], 3)
+        self.assertEqual(yb[1], 7)
+
+        data[7][9] = 12
+        xb, yb = astroUtils.get_bounds(data, x, y)
+        self.assertEqual(xb[0], 40)
+        self.assertEqual(xb[1], 90)
+        self.assertEqual(yb[0], 3)
+        self.assertEqual(yb[1], 7)
+
+        data[10][9] = 12
+        xb, yb = astroUtils.get_bounds(data, x, y)
+        self.assertEqual(xb[0], 40)
+        self.assertEqual(xb[1], 90)
+        self.assertEqual(yb[0], 3)
+        self.assertEqual(yb[1], 10)
+
 if __name__ == '__main__':
     unittest.main()

@@ -8,4 +8,4 @@
 
 # Ignore log files
 tleParse_out.txt
-debSim_log.txt
+*debSim_log*

@@ -16,7 +16,7 @@ from bokeh.models import ColumnDataSource, ColorBar, LinearColorMapper
 from bokeh.palettes import Blues9
 from bokeh.layouts import gridplot
 
-from astroUtils import parse_catalog, Re, PropagationError, Object, Laser
+from astroUtils import parse_catalog, Re, PropagationError, Object, Laser, rnd, get_bounds
 
 frmat = '%Y-%m-%d %H:%M:%S'
 
@@ -149,31 +149,6 @@ class Simulator:
         """
         print('{}: {}'.format(threading.current_thread().name, msg))
 
-def get_bounds(arry, x_arry, y_arry):
-    """
-    Given arry, return the bounds for x and y to set the plot (i.e. find the lowest and highest non-zero values of x
-    and y in the data).
-    :param numpy.array arry: data array
-    :param numpy.array x_arry: range of x values
-    :param numpy.array y_arry: range of y values
-    :return: tuple x_bounds, tuple y_bounds in format (min_val, max_val)
-    """
-    bounds = arry.nonzero()
-    min_y = bounds[0][0]
-    max_y = bounds[0][-1]
-    min_x = bounds[1][0]
-    max_x = bounds[1][-1]
-
-    if min_x == max_x:
-        min_x = 0
-        max_x = -1
-
-    if min_y == max_y:
-        min_y = 0
-        max_y = -1
-
-    return (x_arry[min_x], x_arry[max_x]), (y_arry[min_y], y_arry[max_y])
-
 if __name__ == "__main__":
 
     #####################################
@@ -187,6 +162,8 @@ if __name__ == "__main__":
     optional.add_argument("--sweep_objs", "-s", help="Sweep through satellites for potential lasers",
                           required=False, action="store_true", default=False)
     args = vars(parser.parse_args())
+
+    print('Running with call: {}'.format(sys.argv[0:]))
 
     parse = args['parse_data']
     sweep = args['sweep_objs']
@@ -293,6 +270,7 @@ if __name__ == "__main__":
                                  int((alt_sat_bounds[1] - alt_sat_bounds[0]) / 1) + 1)
         np_inc_sat = np.linspace(i_sat_bounds[0], i_sat_bounds[1], int((upper_i - lower_i) / i_delim) + 1)
 
+        appended = []
         for alt in np_alt_sat:
             for inc in np_inc_sat:
                 for obj in objects:
@@ -302,35 +280,36 @@ if __name__ == "__main__":
                     h = (obj.a - Re) / 1000
                     i = math.degrees(obj.i)
 
-                    if abs(h-alt) <= alt_delim/2 and abs(i-inc) <= i_delim/2 and obj not in laser_objs:
+                    if abs(h-alt) <= alt_delim/2 and abs(i-inc) <= i_delim/2 and obj not in appended:
                         # print('{} ({}): alt {} km inc {} deg ecc {}'.format(
                         #     obj.satName, obj.satNum, round(h, 1), round(i, 1), round(obj.e, 2)
                         # ))
-                        laser_objs.append(obj)
+                        laser_objs.append(Laser(obj.tle))
+                        appended.append(obj)
                         break
 
     else:
-        target_a = 816
-        target_i = 98
+        target_a = 820
+        target_i = 99
         a_tol = 1
         i_tol = 0.5
-        # for obj in objects:
-        #     if 'TBA' in obj.satName or obj.deb:
-        #         continue
-        #
-        #     h = (obj.a - Re) / 1000
-        #     i = math.degrees(obj.i)
-        #
-        #     if abs(h - target_a) <= a_tol and abs(i - target_i) <= i_tol and obj not in laser_objs:
-        #         # print('{} ({}): alt {} km inc {} deg ecc {}'.format(
-        #         #     obj.satName, obj.satNum, round(h, 1), round(i, 1), round(obj.e, 2)
-        #         # ))
-        #         laser_objs.append(obj)
+        for obj in objects:
+            if 'TBA' in obj.satName or obj.deb:
+                continue
+
+            h = (obj.a - Re) / 1000
+            i = math.degrees(obj.i)
+
+            if abs(h - target_a) <= a_tol and abs(i - target_i) <= i_tol and obj not in laser_objs:
+                # print('{} ({}): alt {} km inc {} deg ecc {}'.format(
+                #     obj.satName, obj.satNum, round(h, 1), round(i, 1), round(obj.e, 2)
+                # ))
+                laser_objs.append(obj)
 
         # Target Laser Object: STERKH 2
         for obj in objects:
             if obj.satNum == 35866:
-                laser_objs.append(obj)
+                laser_objs.append(Laser(obj.tle))
 
     Blues9.reverse()
 
@@ -368,12 +347,8 @@ if __name__ == "__main__":
 
 
         alt = (simulator.laserObject.a - Re)/1000
-        nearest_alt = int(alt // alt_delim) * alt_delim
-        # Very lowest sat in laser_obj rounds to 690 rather than 695
-        if nearest_alt < 695:
-            nearest_alt = 695
-
-        nearest_inc = int(math.degrees(simulator.laserObject.i) // i_delim) * i_delim
+        nearest_alt = rnd(alt, alt_delim)
+        nearest_inc = rnd(math.degrees(simulator.laserObject.i), i_delim)
 
         x_coord = np.where(np_alt == nearest_alt)[0][0]
         y_coord = np.where(np_inc == nearest_inc)[0][0]
@@ -381,9 +356,9 @@ if __name__ == "__main__":
         tot[y_coord][x_coord] += len(passes)
 
         for indx, row in passes.iterrows():
-            nearest_dist = int(row['Distance [km]'] // d_delim) * d_delim
-            nearest_deb_i = int(row['Deb I'] // i_delim) * i_delim
-            nearest_vel = int(row['Rel V'] // v_delim) * v_delim
+            nearest_dist = rnd(row['Distance [km]'], d_delim)
+            nearest_deb_i = rnd(row['Deb I'], i_delim)
+            nearest_vel = rnd(row['Rel V'], v_delim)
 
             dist_coord = np.where(np_dist == nearest_dist)[0][0]
             deb_inc_coord = np.where(np_inc == nearest_deb_i)[0][0]
