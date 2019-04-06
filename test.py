@@ -3,6 +3,7 @@ import math
 import datetime as dt
 
 import numpy as np
+import pandas as pd
 
 from astroUtils import Object
 import astroUtils
@@ -254,6 +255,86 @@ class Test_get_bounds(unittest.TestCase):
         self.assertEqual(xb[1], 90)
         self.assertEqual(yb[0], 3)
         self.assertEqual(yb[1], 10)
+
+class Test_append(unittest.TestCase):
+    def test_function(self):
+
+        foo = pd.DataFrame([],columns=['x','y'])
+        bar = pd.DataFrame([[1,2]],columns=['x','y'])
+
+        foo = astroUtils.append(foo,bar)
+        self.assertEqual(foo.iloc[0]['x'],1)
+        self.assertEqual(foo.iloc[0]['y'],2)
+        self.assertEqual(len(foo),1)
+
+        bar = pd.DataFrame([[3, 4]], columns=['x', 'y'])
+        foo = astroUtils.append(foo,bar)
+        self.assertEqual(foo.iloc[0]['x'], 1)
+        self.assertEqual(foo.iloc[0]['y'], 2)
+        self.assertEqual(foo.iloc[1]['x'], 3)
+        self.assertEqual(foo.iloc[1]['y'], 4)
+        self.assertEqual(len(foo), 2)
+
+        bar = pd.Series([5,6], index=['x','y'])
+        foo = astroUtils.append(foo, bar)
+        self.assertEqual(foo.iloc[0]['x'], 1)
+        self.assertEqual(foo.iloc[0]['y'], 2)
+        self.assertEqual(foo.iloc[1]['x'], 3)
+        self.assertEqual(foo.iloc[1]['y'], 4)
+        self.assertEqual(foo.iloc[2]['x'], 5)
+        self.assertEqual(foo.iloc[2]['y'], 6)
+        self.assertEqual(len(foo), 3)
+
+        foo = pd.DataFrame([], columns=['x', 'y'])
+        bar = pd.Series([7,8], index=['x','y'])
+        foo = astroUtils.append(foo, bar)
+        self.assertEqual(type(foo),pd.DataFrame)
+        self.assertEqual(foo.iloc[0]['x'],7)
+        self.assertEqual(foo.iloc[0]['y'],8)
+
+class Test_split_array(unittest.TestCase):
+    def test_function(self):
+        indices = (np.array([444, 449]),)
+        split = [np.array([444]), np.array([449])]
+        split_out = astroUtils.split_array(indices)
+        self.assert_equal(split, split_out)
+
+        indices = (np.array([444, 449, 450]),)
+        split = [np.array([444]), np.array([449, 450])]
+        split_out = astroUtils.split_array(indices)
+        self.assert_equal(split, split_out)
+
+        indices = (np.array([1, 2, 5]),)
+        split = [np.array([1,2]), np.array([5])]
+        split_out = astroUtils.split_array(indices)
+        self.assert_equal(split, split_out)
+
+        indices = (np.array([0, 1, 2, 3, 10]),)
+        split = [np.array([0,1,2,3]), np.array([10])]
+        split_out = astroUtils.split_array(indices)
+        self.assert_equal(split, split_out)
+
+        indices = (np.array([0, 1, 2, 3, 10, 11]),)
+        split = [np.array([0, 1, 2, 3]), np.array([10, 11])]
+        split_out = astroUtils.split_array(indices)
+        self.assert_equal(split, split_out)
+
+        indices = (np.array([0, 1, 2, 3, 5, 10, 11]),)
+        split = [np.array([0, 1, 2, 3]), np.array([5]), np.array([10, 11])]
+        split_out = astroUtils.split_array(indices)
+        self.assert_equal(split, split_out)
+
+    def assert_equal(self, true, test):
+
+        self.assertEqual(len(true),len(test))
+        for i in range(0, len(true)):
+            truei = true[i]
+            testi = test[i]
+
+            self.assertEqual(len(truei), len(testi))
+
+            for j in range(0, len(truei)):
+                    self.assertEqual(testi[j], truei[j])
 
 if __name__ == '__main__':
     unittest.main()

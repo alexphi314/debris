@@ -139,7 +139,8 @@ class Object:
         """
 
         deltaTime = int((endTime - startTime).total_seconds())
-        step = round(deltaTime/steps)
+        self.timeStep = deltaTime/steps
+        step = round(deltaTime / steps)
         times = list(range(0, deltaTime, step))
         times.append(deltaTime)
 
@@ -385,3 +386,33 @@ def get_bounds(arry, x_arry, y_arry):
         max_y = -1
 
     return (x_arry[min_x], x_arry[max_x]), (y_arry[min_y], y_arry[max_y])
+
+def append(exist, new):
+    """
+    Append dataframe to end of existing dataframe
+    :param pd.DataFrame exist: exisiting 'large' df
+    :param pd.DataFrame or pd.Series new: new 'small' df or series to append to end of existing
+    :return: pd.DataFrame appended, combination of the two
+    """
+
+    if type(new) == pd.DataFrame:
+        appended = pd.concat([exist, new], axis=0, ignore_index=True)
+    else:
+        appended = pd.concat([exist.T, new], axis=1, ignore_index=True)
+        return appended.T
+
+    return appended
+
+def split_array(tuple):
+    """
+    Split array into sub-arrays with continuous values
+    :param tuple array: input tuple with first element an np.array to split
+    :return: np.array split
+    """
+    split = np.split(tuple[0], np.where(np.diff(tuple[0]) != 1)[0] + 1)
+
+    for indx, array in enumerate(split):
+        if array.ndim == 2 and len(array) > 0:
+            split[indx] = split[indx][0]
+
+    return split

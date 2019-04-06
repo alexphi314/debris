@@ -16,22 +16,9 @@ from bokeh.models import ColumnDataSource, ColorBar, LinearColorMapper
 from bokeh.palettes import Blues9
 from bokeh.layouts import gridplot
 
-from astroUtils import parse_catalog, Re, PropagationError, Object, Laser, rnd, get_bounds
+from astroUtils import parse_catalog, Re, PropagationError, Object, Laser, rnd, get_bounds, append, split_array
 
 frmat = '%Y-%m-%d %H:%M:%S'
-
-def append(exist,new):
-    """
-    Append dataframe to end of existing dataframe
-    :param pd.DataFrame exist: exisiting 'large' df
-    :param pd.DataFrame new: new 'small' df to append to end of existing
-    :return: pd.DataFrame appended, combination of the two
-    """
-    if len(exist) == 0:
-        return new
-
-    appended = pd.concat([exist,new],axis=0,ignore_index=True)
-    return appended
 
 class Simulator:
     """
@@ -57,6 +44,7 @@ class Simulator:
 
         self.passQueue = queue.Queue()
         self.aLock = threading.Lock()
+        self.durationALock = threading.Lock()
 
     def setLaser(self, obj):
         """
@@ -73,6 +61,7 @@ class Simulator:
 
         ## Define laser pass variables
         self._laserPasses = pd.DataFrame([], columns=self.dfCols)
+        self._passDurations = pd.DataFrame([], columns=['Start Time','End Time','Duration'])
 
     def gen_trajectories(self):
         """
@@ -122,6 +111,24 @@ class Simulator:
                     tempDf['Number'] = obj.satNum
                     tempDf['Rel V'] = smallVel
                     tempDf['Deb I'] = math.degrees(obj.i)
+
+                    if len(smallDist) > 1:
+                        split = split_array(indices)
+
+                        for arry in split:
+                            if len(arry) == 1:
+                                continue
+
+                            accessStart = obj.trajectoryTimes[arry[0]]
+                            accessEnd = obj.trajectoryTimes[arry[-1]]
+
+                            tempSeries = pd.Series([accessStart, accessEnd, (accessEnd - accessStart).total_seconds()],
+                                                   index=['Start Time', 'End Time', 'Duration'])
+
+                            with self.durationALock:
+                                self._passDurations = append(self._passDurations, tempSeries)
+
+                        foo = 1
 
                     assert len([obj.trajectoryTimes[i] for i in indices[0]]) == len(smallDist)
 
@@ -215,7 +222,7 @@ if __name__ == "__main__":
     numDays = 7
     startTime = dt.datetime(2019,3,27,17,00,00)
     endTime = startTime + dt.timedelta(days=numDays)
-    steps = numDays*6*24
+    steps = numDays*24
     useECI = False
 
     simulator = Simulator(startTime, endTime, steps, useECI)
@@ -293,23 +300,24 @@ if __name__ == "__main__":
         target_i = 99
         a_tol = 1
         i_tol = 0.5
+        # for obj in objects:
+        #     if 'TBA' in obj.satName or obj.deb:
+        #         continue
+        #
+        #     h = (obj.a - Re) / 1000
+        #     i = math.degrees(obj.i)
+        #
+        #     if abs(h - target_a) <= a_tol and abs(i - target_i) <= i_tol and obj not in laser_objs:
+        #         # print('{} ({}): alt {} km inc {} deg ecc {}'.format(
+        #         #     obj.satName, obj.satNum, round(h, 1), round(i, 1), round(obj.e, 2)
+        #         # ))
+        #         laser_objs.append(obj)
+
+        # Target Laser Object: METOP-C
         for obj in objects:
-            if 'TBA' in obj.satName or obj.deb:
-                continue
-
-            h = (obj.a - Re) / 1000
-            i = math.degrees(obj.i)
-
-            if abs(h - target_a) <= a_tol and abs(i - target_i) <= i_tol and obj not in laser_objs:
-                # print('{} ({}): alt {} km inc {} deg ecc {}'.format(
-                #     obj.satName, obj.satNum, round(h, 1), round(i, 1), round(obj.e, 2)
-                # ))
-                laser_objs.append(obj)
-
-        # Target Laser Object: STERKH 2
-        for obj in objects:
-            if obj.satNum == 35866:
+            if obj.satNum == 43689:
                 laser_objs.append(Laser(obj.tle))
+                break
 
     Blues9.reverse()
 
