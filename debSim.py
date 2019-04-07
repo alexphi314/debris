@@ -128,8 +128,6 @@ class Simulator:
                             with self.durationALock:
                                 self._passDurations = append(self._passDurations, tempSeries)
 
-                        foo = 1
-
                     assert len([obj.trajectoryTimes[i] for i in indices[0]]) == len(smallDist)
 
                     with self.aLock:
@@ -147,6 +145,13 @@ class Simulator:
         :return: pd.DataFrame laserPasses
         """
         return self._laserPasses
+
+    def get_durations(self):
+        """
+        Return passDurations dataframe
+        :return: pd.DataFrame passDurations
+        """
+        return self._passDurations
 
     def message(self, msg):
         """
@@ -247,23 +252,27 @@ if __name__ == "__main__":
         len(simulator.badTrajs))
     )
 
-    ## Select test laser objects
+    ## Generate range arrays
     lower_alt = 695
     upper_alt = 1005
     alt_delim = 1
+    np_alt = np.linspace(lower_alt, upper_alt, int((upper_alt - lower_alt) / alt_delim) + 1)
+
     lower_i = -1
     upper_i = 181 #boundaries for actual debris objects
     i_delim = 1
+    np_inc = np.linspace(lower_i, upper_i, int((upper_i - lower_i) / i_delim) + 1)
+
     lower_v = 0
     upper_v = 25
     v_delim = 0.25
+    np_vel = np.linspace(lower_v, upper_v, int((upper_v - lower_v) / v_delim) + 1)
+
     lower_d = 0
     upper_d = 100
     d_delim = 1
-    np_alt = np.linspace(lower_alt, upper_alt, int((upper_alt - lower_alt) / alt_delim)+1)
-    np_inc = np.linspace(lower_i, upper_i, int((upper_i - lower_i) / i_delim)+1)
-    np_vel = np.linspace(lower_v, upper_v, int((upper_v - lower_v) / v_delim)+1)
-    np_dist = np.linspace(lower_d, upper_d, int((upper_d - lower_d)/ d_delim)+1)
+    np_dist = np.linspace(lower_d, upper_d, int((upper_d - lower_d) / d_delim) + 1)
+
     uniq = np.zeros([len(np_inc), len(np_alt)])
     tot = uniq
     vel = np.zeros([len(np_vel), len(np_dist)])
@@ -324,8 +333,8 @@ if __name__ == "__main__":
     print('Running from {} to {}, with {} steps'.format(
         startTime.strftime(frmat), endTime.strftime(frmat), steps
     ))
-    for laser_obj in laser_objs:
-        simulator.setLaser(laser_obj)
+    for laserObj in laser_objs:
+        simulator.setLaser(laserObj)
 
         for obj in objects:
             if obj not in simulator.badTrajs:
@@ -338,21 +347,18 @@ if __name__ == "__main__":
         ###############################
 
         passes = simulator.get_passes()
+
+        durations = simulator.get_durations()
+        lower_dur = 0
+        upper_dur = durations['Duration'].max()
+        dur_delim = 60
+        np_dur = np.linspace(lower_dur, upper_dur, int((upper_dur - lower_dur) / dur_delim) + 1)
+        durs = np.zeros([len(np_dur)])
+
         print('')
-        print('Laser Object: {} ({})'.format(laser_obj.satName, laser_obj.satNum))
+        print('Laser Object: {} ({})'.format(laserObj.satName, laserObj.satNum))
         uniquePasses = set([passes.iloc[i]['Number'] for i in range(0,len(passes))])
         print('Got {} passes, {} unique objects'.format(len(passes), len(uniquePasses)))
-        # for i in range(0, len(passes)):
-        #     row = passes.iloc[i]
-        #     print('{}: {} seen {} km away'.format(
-        #           row['Time'].strftime(frmat),row['Object'], round(row['Distance [km]'],2)))
-
-        # output_file('Plots/laserPasses_{}.html'.format(simulator.laserObject.satNum))
-        # source = ColumnDataSource(passes)
-        # p = figure(title='Laser Passes Over Time', x_axis_label='Time', x_axis_type='datetime',y_axis_label='Distance [km]',
-        #            tooltips=[('Time','$x'),('Distance','$y'),('Object','@Object')])
-        # p.scatter(x='Time',y='Distance [km]',source=source)
-
 
         alt = (simulator.laserObject.a - Re)/1000
         nearest_alt = rnd(alt, alt_delim)
@@ -375,6 +381,17 @@ if __name__ == "__main__":
             vel[vel_coord][dist_coord]+=1
             inc_arry[deb_inc_coord][y_coord]+=1
 
+        for indx, row in durations.iterrows():
+            nearest_dur = rnd(row['Duration'], dur_delim)
+            coord = np.where(np_dur == nearest_dur)[0][0]
+            durs[coord] += 1
+
+        output_file('Plots/passDurations_{}.html'.format(laserObj.satNum))
+        p6 =figure(title='Pass Duration Distribution', x_axis_label='Duration (sec)', y_axis_label='Number of Passes',
+                    x_range=(lower_dur, upper_dur), y_range=(0, durs.max()),
+                    tooltips=[("Duration", "$x"), ("Number", "$y")])
+        p6.vbar(x=np_dur, top=durs, bottom=0, width=dur_delim)
+        show(p6)
 
     uniq_x, uniq_y = get_bounds(uniq, np_alt, np_inc)
     tot_x, tot_y = get_bounds(tot, np_alt, np_inc)
