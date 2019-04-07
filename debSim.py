@@ -24,7 +24,6 @@ class Simulator:
     """
     Simulator manager class
     """
-    laserRange = 100e3 #m
     def __init__(self, startTime, endTime, steps, useECI):
         """
         :param datetime.datetime startTime: simulation start time
@@ -49,7 +48,8 @@ class Simulator:
     def setLaser(self, obj):
         """
         Update the laser object used for distance calcs
-        :param Object obj: sat cat obj used as laser
+
+        :param Laser obj: sat cat obj used as laser
         :return:
         """
         assert self.passQueue.empty()
@@ -66,12 +66,13 @@ class Simulator:
     def gen_trajectories(self):
         """
         For all objects in queue, generate trajectory
+
         :return:
         """
         while True:
             try:
                 obj = self.trajQueue.get()
-                obj.generate_trajectory(self.startTime, self.endTime, self.steps, self.useECI)
+                obj.generate_trajectory(self.startTime, self.endTime, self.steps, self.useECI, self.laserObject)
                 #self.message('Trajectory generated for {}'.format(obj.satName))
             except PropagationError as e:
                 self.message('Got Propagation Error: {}'.format(e.msg))
@@ -82,6 +83,7 @@ class Simulator:
     def compute_passes(self):
         """
         For all objects in queue, calculate distance to laser at each time step
+
         :return:
         """
         while True:
@@ -99,7 +101,7 @@ class Simulator:
 
                 relDist = np.linalg.norm(relPosition, axis=1)
                 relVel = np.linalg.norm(relVelocity, axis=1)
-                indices = np.where(relDist < self.laserRange)
+                indices = np.where(relDist < self.laserObject.range)
                 smallDist = relDist[indices]/1000 #convert to km
                 smallVel = relVel[indices]/1000 #conver to km/s
 
@@ -142,6 +144,7 @@ class Simulator:
     def get_passes(self):
         """
         Return laserPasses dataframe
+
         :return: pd.DataFrame laserPasses
         """
         return self._laserPasses
@@ -149,6 +152,7 @@ class Simulator:
     def get_durations(self):
         """
         Return passDurations dataframe
+
         :return: pd.DataFrame passDurations
         """
         return self._passDurations
@@ -156,6 +160,7 @@ class Simulator:
     def message(self, msg):
         """
         Print message with thread name
+
         :param msg: message to print
         :return:
         """
@@ -224,13 +229,21 @@ if __name__ == "__main__":
 
     print('Starting sim...')
     print('Running with {} pieces of debris and {} sats'.format(len(deb), len(sats)))
+    objects = deb + sats
     numDays = 7
     startTime = dt.datetime(2019,3,27,17,00,00)
     endTime = startTime + dt.timedelta(days=numDays)
-    steps = numDays*24
-    useECI = False
+    steps = numDays*12*24
+    useECI = True
+
+    laser = None
+    for obj in objects:
+        if obj.satNum == 43689:
+            laser = obj
+            break
 
     simulator = Simulator(startTime, endTime, steps, useECI)
+    simulator.setLaser(laser)
 
     for i in range(1,5):
         worker = threading.Thread(target=simulator.gen_trajectories,
@@ -243,7 +256,6 @@ if __name__ == "__main__":
         worker.setDaemon(True)
         worker.start()
 
-    objects = deb + sats
     for obj in objects:
         simulator.trajQueue.put(obj)
 

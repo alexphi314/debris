@@ -143,12 +143,8 @@ class Test_generate_trajectory(unittest.TestCase):
         r = r.tolist()[0]
         v = v.tolist()[0]
         rout, vout = obj.parse_trajectory(0)
-        self.assertEqual(r[0], rout[0])
-        self.assertEqual(r[1], rout[1])
-        self.assertEqual(r[2], rout[2])
-        self.assertEqual(v[0], vout[0])
-        self.assertEqual(v[1], vout[1])
-        self.assertEqual(v[2], vout[2])
+        self.vectors_equal(r,rout)
+        self.vectors_equal(v,vout)
 
         ## Test TEME trajectory
         obj.generate_trajectory(startTime, endTime, steps, False)
@@ -159,13 +155,20 @@ class Test_generate_trajectory(unittest.TestCase):
         r, v = obj.get_teme_state(startTime)
         r = r.tolist()[0]
         v = v.tolist()[0]
-        rout, vout = obj.parse_trajectory(0)
-        self.assertEqual(r[0], rout[0])
-        self.assertEqual(r[1], rout[1])
-        self.assertEqual(r[2], rout[2])
-        self.assertEqual(v[0], vout[0])
-        self.assertEqual(v[1], vout[1])
-        self.assertEqual(v[2], vout[2])
+        rout, vout = obj.parse_trajectory(indx=0)
+        self.vectors_equal(r,rout)
+        self.vectors_equal(v,vout)
+
+        rout, vout = obj.parse_trajectory(time=startTime)
+        self.vectors_equal(r,rout)
+        self.vectors_equal(v,vout)
+
+    def vectors_equal(self,test, true):
+        self.assertEqual(len(test), 3)
+
+        self.assertEqual(true[0], test[0])
+        self.assertEqual(true[1], test[1])
+        self.assertEqual(true[2], test[2])
 
 class Test_get_JD(unittest.TestCase):
     def test_function(self):

@@ -39,18 +39,28 @@ class Object:
         """
         Initializer for object class, based on TLE
         You must supply a tle_str
+
         :param string tle_str: tle in string format, used to define object params
         """
 
         self.tle = tle_str
-        lines = tle_str.split('\n')
+        self.parse_tle()
+
+    def parse_tle(self):
+        """
+        Parse the input tle and update variables
+
+        :return:
+        """
+
+        lines = self.tle.split('\n')
         line0 = lines[0]
         line1 = lines[1]
         line2 = lines[2]
 
         self.satName = line0[2:].strip()
-        rb_re = re.compile('\S*R/B\S*',re.IGNORECASE)
-        deb_re = re.compile('\S*DEB\S*',re.IGNORECASE)
+        rb_re = re.compile('\S*R/B\S*', re.IGNORECASE)
+        deb_re = re.compile('\S*DEB\S*', re.IGNORECASE)
 
         if rb_re.search(self.satName) or deb_re.search(self.satName):
             self.deb = True
@@ -90,12 +100,12 @@ class Object:
         self.epoch = dt.datetime.strptime(epoch, '%Y-%j %H:%M:%S.%f')
 
         ## Calculate last perigee time
-        timeSincePerigee = self.M/self.n
+        timeSincePerigee = self.M / self.n
         self._pt = self.epoch - dt.timedelta(seconds=timeSincePerigee)
 
         ## Calculate h,P
-        self.h = math.sqrt(MEW*self.a*(1-math.pow(self.e,2)))
-        self.P = math.pow(self.h,2)/MEW
+        self.h = math.sqrt(MEW * self.a * (1 - math.pow(self.e, 2)))
+        self.P = math.pow(self.h, 2) / MEW
 
         ## Initialize sgp4 object
         self.sgpObject = twoline2rv(line1, line2, wgs72)
@@ -103,6 +113,7 @@ class Object:
     def get_teme_state(self, time):
         """
         Return the object teme position at given time
+
         :param datetime.datetime time: reference time for position
         :return: list pos, list veloc: position in [x,y,z] format [m] and velocity in [vx, vy, vz] [m]
         """
@@ -120,6 +131,7 @@ class Object:
     def get_eci_state(self, time):
         """
         At the specified time, return the state vector in ECI frame
+
         :param datetime.datetime time: time of state vector
         :return: numpy.array r_eci, numpy.array v_eci
         """
@@ -129,12 +141,15 @@ class Object:
 
         return r_eci.T, v_eci.T
 
-    def generate_trajectory(self, startTime, endTime, steps, useECI = True):
+    def generate_trajectory(self, startTime, endTime, steps, useECI = True, laserObject = None):
         """
         Generate a trajectory between startTime and endTime in interval time steps
+
         :param datetime.datetime startTime: start of trajectory (inclusive)
         :param datetime.datetime endTime: end of trajectory (inclusive)
         :param int steps: number of time steps between trajectory points
+        :param bool useECI: return position in ECI if True; TEME if false. Default is True
+        :param Laser laserObject: laser object in orbit OPTIONAL
         :return: define pandas.DataFrame self.trajectory
         """
 
@@ -153,6 +168,22 @@ class Object:
 
             if useECI:
                 r, v = self.get_eci_state(time)
+
+                if laserObject is not None:
+                    laserPos = laserObject.parse_trajectory(time=time)
+                    relPos = (r - np.array(laserPos))[0]
+                    relDist = np.linalg.norm(relPos)
+
+                    if relDist < laserObject.range and laserObject.is_ready(time):
+                        print('Firing laser on {} at {}'.format(self.satName, time.strftime('%Y-%m-%d %H:%M:%S')))
+                        deltaV = laserObject.fire(time,time+dt.timedelta(seconds=deltaSeconds),relDist)
+                        unitPos = relPos / relDist
+                        v += deltaV*unitPos
+
+                        newTLE = self.update_tle(r,v)
+                        self.tle = newTLE
+                        self.parse_tle()
+
             else:
                 r, v = self.get_teme_state(time)
 
@@ -164,15 +195,53 @@ class Object:
         self.trajectory = pd.DataFrame(data=combined_rv, columns=['Posx','Posy','Posz','Velx','Vely','Velz'])
         self.trajectory['Times'] = self.trajectoryTimes
 
-    def parse_trajectory(self, indx):
+    def update_tle(self, r, v):
         """
-        Given index in the trajectory DataFrame, return r, v in nice form
-        :param indx: indx in self._trajectory
+        Return an updated TLE from STK using the input state vectors in ECI
+
+        :param numpy.array r: radius in ECI
+        :param numpy.array v: velocity in ECI
+        :return: string tle: new TLE
+        """
+
+        ##TODO: Define STK interface
+        return r, v
+
+    def parse_trajectory(self, indx = None, time = None):
+        """
+        Given index or time in the trajectory DataFrame, return r, v in nice form.
+
+        :param int indx: indx in self._trajectory OPTIONAL
+        :param datetime.datetime tim: time in self._trajectory OPTIONAL
         :return: float list r, float list v in format [x,y,z]
         """
 
-        r = [self.trajectory.iloc[indx]['Posx'], self.trajectory.iloc[indx]['Posy'], self.trajectory.iloc[indx]['Posz']]
-        v = [self.trajectory.iloc[indx]['Velx'], self.trajectory.iloc[indx]['Vely'], self.trajectory.iloc[indx]['Velz']]
+        if indx is None and time is None:
+            raise ValueError("Either indx or time argument must be given")
+
+        if indx is not None and time is not None:
+            raise ValueError("Either indx argument or time argument must be none, both cannot be given")
+
+        r = []
+        v = []
+        if time is not None:
+            ##TODO: Generalize for position closest to given time (if time is not in trajectory)
+            entry = self.trajectory.loc[self.trajectory['Times'] == time]
+
+            if len(entry) == 0:
+                return r, v
+
+            row = entry.iloc[0]
+            r = [row['Posx'], row['Posy'],
+                 row['Posz']]
+            v = [row['Velx'], row['Vely'],
+                 row['Velz']]
+
+        if indx is not None:
+            r = [self.trajectory.iloc[indx]['Posx'], self.trajectory.iloc[indx]['Posy'],
+                 self.trajectory.iloc[indx]['Posz']]
+            v = [self.trajectory.iloc[indx]['Velx'], self.trajectory.iloc[indx]['Vely'],
+                 self.trajectory.iloc[indx]['Velz']]
 
         return r, v
 
@@ -180,17 +249,62 @@ class Laser(Object):
     """
     Object class specifically for a Laser
     """
+    chargingTime = 7*24*3600 # assuming 1 week charging time
+    range = 100e3
     def __init__(self, tle):
         """
         Init class
+
         :param string tle: input tle that defines parameters
         """
 
         super().__init__(tle)
+        self._fireTimes = pd.DataFrame([],columns=['Start','End','Duration'])
+
+    def fire(self, startTime, endTime, range):
+        """
+        Return the delta-V generated by a laser firing on the object
+
+        :param datetime.datetime startTime: beginning time of laser fire
+        :param datetime.datetime endTime: ending time of laser fire
+        :param float range: distance between laser and debris
+        :return: float deltaV: deltaV generated by laser on object
+        """
+
+        tempS = pd.Series([startTime, endTime, (endTime-startTime).total_seconds()],index=['Start','End','Duration'])
+        self._fireTimes = append(self._fireTimes, tempS)
+
+        #TODO: Call Stephen's MATLAB code
+        deltaV = 0
+
+        return deltaV
+
+    def is_ready(self, time):
+        """
+        Return whether the laser is charged and able to fire at time
+
+        :param datetime.datetime time: time of potential firing
+        :return: bool ready
+        """
+        lastFireTime = self._fireTimes.iloc[-1]['Start']
+
+        if (time - lastFireTime).total_seconds() > self.chargingTime:
+            return True
+
+        return False
+
+    def get_fire_times(self):
+        """
+        Return fireTimes dataframe
+
+        :return: pandas.DataFrame tracking fire times
+        """
+        return self._fireTimes
 
 def solve_kepler(M, e):
     """
     Solve Kepler's Equation for E
+
     :param float M: mean anomaly [rad]
     :param float e: eccentricity
     :return: float E: eccentric anomaly [rad]
@@ -242,6 +356,7 @@ def calc_o(E, e):
 def peri2eci(O, i, wp):
     """
     Given RAAN, inclination, argument of perigee, return O_eci_p
+
     :param float O: RAAN [rad]
     :param float i: inclination [rad]
     :param float wp: argument of perigee [rad]
@@ -264,6 +379,7 @@ def peri2eci(O, i, wp):
 def parse_catalog(format):
     """
     Open the txt file with all TLEs in the sat cat, create an Object for each tle
+
     :param int format: 2 or 3 corresponding to 2 line or 3 line format
     :return: objects list, each index is an Object in the sat cat
     """
@@ -290,6 +406,7 @@ def parse_catalog(format):
 def get_jd(time):
     """
     Return julian date at given time
+
     :param datetime.datetime time: time at which to calculate JD
     :return: float JD
     """
@@ -308,6 +425,7 @@ def get_jd(time):
 def teme2eci(r_teme, v_teme, time, delta_at):
     """
     Convert input r and v vectors to ECI frame (j2000)
+
     :param numpy.array r_teme: radius in teme, col vector format
     :param numpy.array v_teme: velocity in teme, col vector format
     :param datetime.datetime time: time of conversion
@@ -328,6 +446,7 @@ def teme2eci(r_teme, v_teme, time, delta_at):
 def row2col(vec):
     """
     Convert 3 element vector from row into column
+
     :param numpy.array vec: row vector to rotate
     :return: list col
     """
@@ -338,6 +457,7 @@ def row2col(vec):
 def rnd(num, delim):
     """
     Rounding function to round number to nearest even value divisible by delim
+
     :param float num: number to round
     :param float delim: difference between even values
     :return: int rounded
@@ -355,6 +475,7 @@ def get_bounds(arry, x_arry, y_arry):
     """
     Given arry, return the bounds for x and y to set the plot (i.e. find the lowest and highest non-zero values of x
     and y in the data).
+
     :param numpy.array arry: data array
     :param numpy.array x_arry: range of x values
     :param numpy.array y_arry: range of y values
@@ -390,6 +511,7 @@ def get_bounds(arry, x_arry, y_arry):
 def append(exist, new):
     """
     Append dataframe to end of existing dataframe
+
     :param pd.DataFrame exist: exisiting 'large' df
     :param pd.DataFrame or pd.Series new: new 'small' df or series to append to end of existing
     :return: pd.DataFrame appended, combination of the two
@@ -406,6 +528,7 @@ def append(exist, new):
 def split_array(tuple):
     """
     Split array into sub-arrays with continuous values
+
     :param tuple array: input tuple with first element an np.array to split
     :return: np.array split
     """
