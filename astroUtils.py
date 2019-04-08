@@ -180,8 +180,7 @@ class Object:
                         unitPos = relPos / relDist
                         v += deltaV*unitPos
 
-                        newTLE = self.update_tle(r,v)
-                        self.tle = newTLE
+                        self.tle = self.update_tle(r,v)
                         self.parse_tle()
 
             else:
@@ -199,13 +198,18 @@ class Object:
         """
         Return an updated TLE from STK using the input state vectors in ECI
 
-        :param numpy.array r: radius in ECI
-        :param numpy.array v: velocity in ECI
+        :param numpy.array r: radius in ECI [m]
+        :param numpy.array v: velocity in ECI [m]
         :return: string tle: new TLE
         """
+        ## Convert to km
+        r = r/1000
+        v = v/1000
 
-        ##TODO: Define STK interface
-        return r, v
+        line1, line2 = eng.tle_from_stk(matlab.double(r.tolist()), matlab.double(v.tolist()),
+                                       matlab.int64([self.satNum]),nargout=2)
+        tle = '0 {}\n{}\n{}'.format(self.satName, line1, line2)
+        return tle
 
     def parse_trajectory(self, indx = None, time = None):
         """

@@ -170,6 +170,20 @@ class Test_generate_trajectory(unittest.TestCase):
         self.assertEqual(true[1], test[1])
         self.assertEqual(true[2], test[2])
 
+class Test_update_tle(unittest.TestCase):
+    def test_function(self):
+        line0 = '0 VANGUARD 1'
+        line1 = '1     5U 58002B   19075.71745479 -.00000160  00000-0 -17930-3 0  9998'
+        line2 = '2     5  34.2430 201.2113 1845233  88.2396 292.7424 10.84775486155534'
+        str = '{}\n{}\n{}'.format(line0, line1, line2)
+
+        obj = Object(tle_str=str)
+        obj.satNum = 99999
+        r = np.array([-1761336.083,5782317.269,-3609765.529])
+        v = np.array([-2316.498,-4430.769,-5686.826])
+
+        tle = obj.update_tle(r,v)
+
 class Test_get_JD(unittest.TestCase):
     def test_function(self):
         time = dt.datetime(1996,10,26,14,20,0,0)
