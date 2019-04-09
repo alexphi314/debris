@@ -27,8 +27,17 @@ eng = matlab.engine.start_matlab()
 eng.addpath(os.getcwd()+'/MATLAB')
 
 class PropagationError(Exception):
-    def __init__(self, msg):
+    def __init__(self, msg, num, time):
+        """
+        Init error
+
+        :param string msg: error message
+        :param int num: error number
+        :param datetime.datetime time: trajectory time where error occurred
+        """
         self.msg = msg
+        self.num = num
+        self.time = time
     pass
 
 class Object:
@@ -124,31 +133,32 @@ class Object:
         v_teme = [v*1000 for v in v_teme] #m
 
         if self.sgpObject.error != 0:
-            raise PropagationError(self.sgpObject.error_message)
+            raise PropagationError(self.sgpObject.error_message, self.sgpObject.error, time)
 
         return np.array(r_teme)[np.newaxis], np.array(v_teme)[np.newaxis]
 
-    def get_eci_state(self, time):
+    def get_eci_state(self, time, matlabLock):
         """
         At the specified time, return the state vector in ECI frame
 
         :param datetime.datetime time: time of state vector
+        :param threading.RLock matlabLock: lock for matlab access
         :return: numpy.array r_eci, numpy.array v_eci
         """
         r_teme, v_teme = self.get_teme_state(time)
 
-        r_eci, v_eci = teme2eci(r_teme.T, v_teme.T, time, delta_at)
+        r_eci, v_eci = teme2eci(r_teme.T, v_teme.T, time, delta_at, matlabLock)
 
         return r_eci.T, v_eci.T
 
-    def generate_trajectory(self, startTime, endTime, steps, useECI = True, laserObject = None):
+    def generate_trajectory(self, startTime, endTime, steps, matlabLock, laserObject = None):
         """
         Generate a trajectory between startTime and endTime in interval time steps
 
         :param datetime.datetime startTime: start of trajectory (inclusive)
         :param datetime.datetime endTime: end of trajectory (inclusive)
         :param int steps: number of time steps between trajectory points
-        :param bool useECI: return position in ECI if True; TEME if false. Default is True
+        :param threading.RLock matlabLock: lock to ensure one thread calls MATLAB at a time
         :param Laser laserObject: laser object in orbit OPTIONAL
         :return: define pandas.DataFrame self.trajectory
         """
@@ -166,25 +176,23 @@ class Object:
         for indx, deltaSeconds in enumerate(times):
             time = startTime + dt.timedelta(seconds=deltaSeconds)
 
-            if useECI:
-                r, v = self.get_eci_state(time)
+            r, v = self.get_teme_state(time)
 
-                if laserObject is not None:
-                    laserPos = laserObject.parse_trajectory(time=time)
-                    relPos = (r - np.array(laserPos))[0]
-                    relDist = np.linalg.norm(relPos)
+            if laserObject is not None and laserObject.enable:
+                laserPos, laserVel = laserObject.parse_trajectory(time=time)
+                relPos = (r - np.array(laserPos))[0]
+                relDist = np.linalg.norm(relPos)
 
-                    if relDist < laserObject.range and laserObject.is_ready(time):
-                        print('Firing laser on {} at {}'.format(self.satName, time.strftime('%Y-%m-%d %H:%M:%S')))
-                        deltaV = laserObject.fire(time,time+dt.timedelta(seconds=deltaSeconds),relDist)
-                        unitPos = relPos / relDist
-                        v += deltaV*unitPos
+                if relDist < laserObject.range and laserObject.is_ready(time):
+                    print('Firing laser on {} at {}'.format(self.satName, time.strftime('%Y-%m-%d %H:%M:%S')))
+                    deltaV = laserObject.fire(time,time+dt.timedelta(seconds=(times[indx+1]-times[indx])),relDist)
+                    unitPos = relPos / relDist
+                    v = v + deltaV*unitPos
 
-                        self.tle = self.update_tle(r,v)
-                        self.parse_tle()
+                    r_ECI, v_ECI = teme2eci(r.T, v.T, time, delta_at, matlabLock)
 
-            else:
-                r, v = self.get_teme_state(time)
+                    self.tle = self.update_tle(r_ECI.T, v_ECI.T, matlabLock)
+                    self.parse_tle()
 
             self.trajectoryTimes.append(time)
             self.trajectoryPos[indx,:] = r
@@ -194,20 +202,25 @@ class Object:
         self.trajectory = pd.DataFrame(data=combined_rv, columns=['Posx','Posy','Posz','Velx','Vely','Velz'])
         self.trajectory['Times'] = self.trajectoryTimes
 
-    def update_tle(self, r, v):
+    def update_tle(self, r, v, matlabLock):
         """
         Return an updated TLE from STK using the input state vectors in ECI
 
         :param numpy.array r: radius in ECI [m]
         :param numpy.array v: velocity in ECI [m]
+        :param threading.RLock matlabLock: lock for matlab access
         :return: string tle: new TLE
         """
+
+        return self.tle
+
         ## Convert to km
         r = r/1000
         v = v/1000
 
-        line1, line2 = eng.tle_from_stk(matlab.double(r.tolist()), matlab.double(v.tolist()),
-                                       matlab.int64([self.satNum]),nargout=2)
+        with matlabLock:
+            line1, line2 = eng.tle_from_stk(matlab.double(r.tolist()), matlab.double(v.tolist()),
+                                           matlab.int64([self.satNum]),nargout=2)
         tle = '0 {}\n{}\n{}'.format(self.satName, line1, line2)
         return tle
 
@@ -253,17 +266,19 @@ class Laser(Object):
     """
     Object class specifically for a Laser
     """
-    chargingTime = 7*24*3600 # assuming 1 week charging time
+    chargingTime = 7*24*3600/2 # assuming 0.5 week charging time
     range = 100e3
-    def __init__(self, tle):
+    def __init__(self, obj, enable):
         """
         Init class
 
-        :param string tle: input tle that defines parameters
+        :param Object obj: input obj that defines parameters
+        :param bool enable: enable laser in simulation
         """
 
-        super().__init__(tle)
+        super().__init__(obj.tle)
         self._fireTimes = pd.DataFrame([],columns=['Start','End','Duration'])
+        self.enable = enable
 
     def fire(self, startTime, endTime, range):
         """
@@ -279,7 +294,7 @@ class Laser(Object):
         self._fireTimes = append(self._fireTimes, tempS)
 
         #TODO: Call Stephen's MATLAB code
-        deltaV = 0
+        deltaV = 5
 
         return deltaV
 
@@ -290,6 +305,12 @@ class Laser(Object):
         :param datetime.datetime time: time of potential firing
         :return: bool ready
         """
+        if not self.enable:
+            return False
+
+        if len(self._fireTimes) == 0:
+            return True
+
         lastFireTime = self._fireTimes.iloc[-1]['Start']
 
         if (time - lastFireTime).total_seconds() > self.chargingTime:
@@ -426,7 +447,7 @@ def get_jd(time):
     JD = 367*yr - int((7*(yr+int((month+9)/12))/4)) + int(275*month/9) + day + 1721013.5 + ((sec/60+min)/60+hour)/24
     return JD
 
-def teme2eci(r_teme, v_teme, time, delta_at):
+def teme2eci(r_teme, v_teme, time, delta_at, matlabLock):
     """
     Convert input r and v vectors to ECI frame (j2000)
 
@@ -434,6 +455,7 @@ def teme2eci(r_teme, v_teme, time, delta_at):
     :param numpy.array v_teme: velocity in teme, col vector format
     :param datetime.datetime time: time of conversion
     :param datetime.timedelta delta_at: difference from TAI to UT1
+    :param threading.RLock matlabLock: lock to access matlab from one thread
     :return: numpy.array r, numpy.array v in ECI frame
     """
     ## Get epoch time
@@ -441,9 +463,10 @@ def teme2eci(r_teme, v_teme, time, delta_at):
     tt = tai + dt.timedelta(seconds=32.184)
 
     ttt = (get_jd(tt) - 2451545) / 36525
-    r_eci, v_eci, aeci = eng.teme2eci(matlab.double(r_teme.tolist()), matlab.double(v_teme.tolist()),
-                                      matlab.double([[0], [0], [0]]), ttt, matlab.double([0]),
-                                      matlab.double([0]), nargout=3)
+    with matlabLock:
+        r_eci, v_eci, aeci = eng.teme2eci(matlab.double(r_teme.tolist()), matlab.double(v_teme.tolist()),
+                                          matlab.double([[0], [0], [0]]), ttt, matlab.double([0]),
+                                          matlab.double([0]), nargout=3)
 
     return np.asarray(r_eci), np.asarray(v_eci)
 

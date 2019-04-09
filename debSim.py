@@ -24,12 +24,11 @@ class Simulator:
     """
     Simulator manager class
     """
-    def __init__(self, startTime, endTime, steps, useECI):
+    def __init__(self, startTime, endTime, steps):
         """
         :param datetime.datetime startTime: simulation start time
         :param datetime.datetime endTime: simulation end time
         :param int steps: number of trajectory steps
-        :param bool useECI: work in ECI frame if true, teme if False
         """
 
         ## Define trajectory variables
@@ -37,15 +36,17 @@ class Simulator:
         self.startTime = startTime
         self.endTime = endTime
         self.steps = steps
-        self.useECI = useECI
         self.badTrajs = []
         self.dfCols = ['Time', 'Object', 'Distance [km]', 'Number', 'Rel V', 'Deb I']
+        self.decayed = pd.DataFrame([],columns=['Time','Number'])
 
         self.passQueue = queue.Queue()
         self.aLock = threading.Lock()
         self.durationALock = threading.Lock()
+        self.matlabLock = threading.RLock()
+        self.decayedALock = threading.Lock()
 
-    def setLaser(self, obj):
+    def setLaser(self, laser):
         """
         Update the laser object used for distance calcs
 
@@ -56,8 +57,8 @@ class Simulator:
         assert self.trajQueue.empty()
 
 
-        self.laserObject = obj
-        self.laserObject.generate_trajectory(self.startTime, self.endTime, self.steps, self.useECI)
+        self.laserObject = laser
+        self.laserObject.generate_trajectory(self.startTime, self.endTime, self.steps, self.matlabLock)
 
         ## Define laser pass variables
         self._laserPasses = pd.DataFrame([], columns=self.dfCols)
@@ -72,11 +73,20 @@ class Simulator:
         while True:
             try:
                 obj = self.trajQueue.get()
-                obj.generate_trajectory(self.startTime, self.endTime, self.steps, self.useECI, self.laserObject)
+                obj.generate_trajectory(self.startTime, self.endTime, self.steps, self.matlabLock, self.laserObject)
                 #self.message('Trajectory generated for {}'.format(obj.satName))
             except PropagationError as e:
-                self.message('Got Propagation Error: {}'.format(e.msg))
+                self.message('Got Propagation Error {}: {}'.format(e.num, e.msg))
                 self.badTrajs.append(obj)
+
+                if e.num == 6:
+                    if len(self.decayed) == 0:
+                        num = 1
+                    else:
+                        num = self.decayed.iloc[-1]['Number']+1
+                    temp = pd.Series([e.time,num],index=['Time','Number'])
+                    with self.decayedALock:
+                        self.decayed = append(self.decayed, temp)
                 pass
             self.trajQueue.task_done()
 
@@ -233,16 +243,23 @@ if __name__ == "__main__":
     numDays = 7
     startTime = dt.datetime(2019,3,27,17,00,00)
     endTime = startTime + dt.timedelta(days=numDays)
-    steps = numDays*12*24
-    useECI = True
+    steps = numDays*12
+    enableLaser = False
 
     laser = None
-    for obj in objects:
-        if obj.satNum == 43689:
-            laser = obj
-            break
+    laserIndx = None
 
-    simulator = Simulator(startTime, endTime, steps, useECI)
+    # Target Laser Object: METOP-C
+    laser_objs = []
+    for indx,obj in enumerate(objects):
+        if obj.satNum == 43689:
+            laser = Laser(obj, enableLaser)
+            laserIndx = indx
+            laser_objs.append(laser)
+            break
+    del objects[laserIndx]
+
+    simulator = Simulator(startTime, endTime, steps)
     simulator.setLaser(laser)
 
     for i in range(1,5):
@@ -290,7 +307,6 @@ if __name__ == "__main__":
     vel = np.zeros([len(np_vel), len(np_dist)])
     inc_arry = np.zeros([len(np_inc), len(np_inc)])
 
-    laser_objs = []
     if sweep:
         i_sat_bounds = [97, 100]  # boundary inclinations for laser objects
         alt_sat_bounds = [810, 830]
@@ -312,7 +328,7 @@ if __name__ == "__main__":
                         # print('{} ({}): alt {} km inc {} deg ecc {}'.format(
                         #     obj.satName, obj.satNum, round(h, 1), round(i, 1), round(obj.e, 2)
                         # ))
-                        laser_objs.append(Laser(obj.tle))
+                        laser_objs.append(Laser(obj.tle, enableLaser))
                         appended.append(obj)
                         break
 
@@ -335,10 +351,10 @@ if __name__ == "__main__":
         #         laser_objs.append(obj)
 
         # Target Laser Object: METOP-C
-        for obj in objects:
-            if obj.satNum == 43689:
-                laser_objs.append(Laser(obj.tle))
-                break
+        # for obj in objects:
+        #     if obj.satNum == 43689:
+        #         laser_objs.append(Laser(obj.tle, enableLaser))
+        #         break
 
     Blues9.reverse()
 
@@ -398,7 +414,7 @@ if __name__ == "__main__":
             coord = np.where(np_dur == nearest_dur)[0][0]
             durs[coord] += 1
 
-        output_file('Plots/passDurations_{}.html'.format(laserObj.satNum))
+        output_file('Plots/passDurations_{}_{}.html'.format(laserObj.satNum,steps))
         p6 =figure(title='Pass Duration Distribution', x_axis_label='Duration (sec)', y_axis_label='Number of Passes',
                     x_range=(lower_dur, upper_dur), y_range=(0, durs.max()),
                     tooltips=[("Duration", "$x"), ("Number", "$y")])
@@ -448,5 +464,10 @@ if __name__ == "__main__":
     color_bar = ColorBar(color_mapper=cmap, location=(0, 0))
     p5.add_layout(color_bar, 'right')
 
-    grid = gridplot([[p2,p3],[p4,p5]])
+    source = ColumnDataSource(simulator.decayed)
+    p7 = figure(title='Debris Decays', x_axis_label='Time', x_axis_type="datetime",
+                y_axis_label='Number of Debris Decays',tooltips=[('Time','$x'),('Number','$y')])
+    p7.line(x=list(simulator.decayed['Time']),y=list(simulator.decayed['Number']))
+
+    grid = gridplot([[p2,p3],[p4,p5],[p7]])
     show(grid)
