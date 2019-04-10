@@ -84,7 +84,8 @@ class Simulator:
                         num = 1
                     else:
                         num = self.decayed.iloc[-1]['Number']+1
-                    temp = pd.Series([e.time,num],index=['Time','Number'])
+                    time = (e.time-self.startTime).total_seconds()
+                    temp = pd.Series([time/3600/24,num],index=['Time','Number'])
                     with self.decayedALock:
                         self.decayed = append(self.decayed, temp)
                 pass
@@ -243,7 +244,7 @@ if __name__ == "__main__":
     numDays = 7
     startTime = dt.datetime(2019,3,27,17,00,00)
     endTime = startTime + dt.timedelta(days=numDays)
-    steps = numDays*12
+    steps = numDays*12*24
     enableLaser = False
 
     laser = None
@@ -465,7 +466,7 @@ if __name__ == "__main__":
     p5.add_layout(color_bar, 'right')
 
     source = ColumnDataSource(simulator.decayed)
-    p7 = figure(title='Debris Decays', x_axis_label='Time', x_axis_type="datetime",
+    p7 = figure(title='Debris Decays', x_axis_label='Elapsed Time [days]',
                 y_axis_label='Number of Debris Decays',tooltips=[('Time','$x'),('Number','$y')])
     p7.line(x=list(simulator.decayed['Time']),y=list(simulator.decayed['Number']))
 
