@@ -241,10 +241,10 @@ if __name__ == "__main__":
     print('Starting sim...')
     print('Running with {} pieces of debris and {} sats'.format(len(deb), len(sats)))
     objects = deb + sats
-    numDays = 7
+    numDays = 14
     startTime = dt.datetime(2019,3,27,17,00,00)
     endTime = startTime + dt.timedelta(days=numDays)
-    steps = numDays*12*24
+    steps = numDays*6*24
     enableLaser = False
 
     laser = None
@@ -298,6 +298,11 @@ if __name__ == "__main__":
     v_delim = 0.25
     np_vel = np.linspace(lower_v, upper_v, int((upper_v - lower_v) / v_delim) + 1)
 
+    slower_v = 0
+    supper_v = 2
+    sv_delim = 0.025
+    np_svel = np.linspace(slower_v, supper_v, int((supper_v - slower_v) / sv_delim) + 1)
+
     lower_d = 0
     upper_d = 100
     d_delim = 1
@@ -307,6 +312,7 @@ if __name__ == "__main__":
     tot = uniq
     vel = np.zeros([len(np_vel), len(np_dist)])
     inc_arry = np.zeros([len(np_inc), len(np_inc)])
+    svel = np.zeros([len(np_svel), len(np_dist)])
 
     if sweep:
         i_sat_bounds = [97, 100]  # boundary inclinations for laser objects
@@ -407,6 +413,11 @@ if __name__ == "__main__":
             deb_inc_coord = np.where(np_inc == nearest_deb_i)[0][0]
             vel_coord = np.where(np_vel == nearest_vel)[0][0]
 
+            if row['Rel V'] < supper_v:
+                nearest_svel = rnd(row['Rel V'], sv_delim)
+                svel_coord = np.where(np_svel == nearest_svel)[0][0]
+                svel[svel_coord][dist_coord] += 1
+
             vel[vel_coord][dist_coord]+=1
             inc_arry[deb_inc_coord][y_coord]+=1
 
@@ -426,6 +437,7 @@ if __name__ == "__main__":
     tot_x, tot_y = get_bounds(tot, np_alt, np_inc)
     vel_x, vel_y = get_bounds(vel, np_dist, np_vel)
     inc_x, inc_y = get_bounds(inc_arry, np_inc, np_inc)
+    svel_x, svel_y = get_bounds(svel, np_dist, np_svel)
 
     print('Uniq: x ({} {}) y ({} {})'.format(uniq_x[0], uniq_x[1], uniq_y[0], uniq_y[1]))
     print('Tot: x ({} {}) y ({} {})'.format(tot_x[0], tot_x[1], tot_y[0], tot_y[1]))
@@ -470,5 +482,13 @@ if __name__ == "__main__":
                 y_axis_label='Number of Debris Decays',tooltips=[('Time','$x'),('Number','$y')])
     p7.line(x=list(simulator.decayed['Time']),y=list(simulator.decayed['Number']))
 
-    grid = gridplot([[p2,p3],[p4,p5],[p7]])
+    p8 = figure(title='Zoomed Relative V vs. Distance', x_axis_label='Distance (km)', y_axis_label='Relative Velocity (km/s)',
+                x_range=(svel_x[0], svel_x[1]), y_range=(svel_y[0], svel_y[1]),
+                tooltips=[("Dist", "$x"), ("Vel", "$y"), ("Number", "@image")])
+    cmap = LinearColorMapper(palette=Blues9, low=0, high=svel.max())
+    p8.image(image=[svel], x=lower_d, y=slower_v, dw=upper_d - lower_d, dh=supper_v - slower_v, color_mapper=cmap)
+    color_bar = ColorBar(color_mapper=cmap, location=(0, 0))
+    p8.add_layout(color_bar, 'right')
+
+    grid = gridplot([[p2,p3],[p4,p5],[p7,p8]])
     show(grid)
