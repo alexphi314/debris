@@ -1,3 +1,7 @@
+## Alex Philpott
+## Utility file defining Object and Laser classes. Also defines various functions used throughout the debSim file.
+## Separated to enable easy unit testing.
+
 import math
 import datetime as dt
 import re

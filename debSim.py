@@ -1,4 +1,6 @@
-## Run collision simulator
+## Alex Philpott
+## Run an orbit propagator for all objects and the laser.
+## Generates almost all the plots used for orbit determination.
 
 import argparse
 import pickle
@@ -299,8 +301,8 @@ if __name__ == "__main__":
     np_vel = np.linspace(lower_v, upper_v, int((upper_v - lower_v) / v_delim) + 1)
 
     slower_v = 0
-    supper_v = 2
-    sv_delim = 0.025
+    supper_v = 50/1000
+    sv_delim = 0.001
     np_svel = np.linspace(slower_v, supper_v, int((supper_v - slower_v) / sv_delim) + 1)
 
     lower_d = 0

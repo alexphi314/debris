@@ -1,3 +1,6 @@
+## Alex Philpott
+## Unit tests for astroUtils
+
 import unittest
 import math
 import datetime as dt

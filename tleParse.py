@@ -1,3 +1,7 @@
+## Alex Philpott
+## Loop through TLEs and print those that fall within certain altitude and inclination bounds
+## In the end, not used to select a laser object, but useful for preliminary selection of test 'laser' satellites.
+
 import argparse
 import os
 import pickle

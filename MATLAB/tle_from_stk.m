@@ -1,4 +1,5 @@
-% Alex Philpott
+%%  Alex Philpott
+%% Connect to STK and return a new TLE
 function [line1,line2] = tle_from_stk(r,v,num)
 %TLE_FROM_STK Given state vector in ECI, return TLE
 % [line1,line2] = tle_from_stk(r,v,num)

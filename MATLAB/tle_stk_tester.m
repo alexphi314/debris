@@ -1,4 +1,5 @@
-% Alex Philpott
+%% Alex Philpott
+%% Test that tle_from_stk is communicating with STK
 r = [-1761336.083,5782317.269,-3609765.529]./1000; %km
 v = [-2316.498,-4430.769,-5686.826]./1000; %km/s
 num = 23224;

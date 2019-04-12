@@ -1,4 +1,5 @@
-## Generate fancy bokeh plots of debris distribution
+## Alex Philpott
+## Generates fancy plots of debris distribution
 
 import math
 import argparse
