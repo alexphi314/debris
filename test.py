@@ -9,6 +9,7 @@ import threading
 
 import numpy as np
 import pandas as pd
+import matlab
 
 from astroUtils import Object
 import astroUtils
@@ -369,9 +370,10 @@ class Test_split_array(unittest.TestCase):
 class Test_matlab_tle_connection(unittest.TestCase):
     def test_function(self):
         if platform.system() == 'Windows':
-            string_out = astroUtils.eng.tle_stk_tester(nargout=1)
-            expected_str = '{}\n{}'.format('1 23224           19102.70833333  .00001693  00000-0  36498-3 0 00001',
-                                           '2 23224 066.6985 273.4079 0238292 271.4615 160.4538 14.42082503000027')
+            date = [2019,3,27,17,00,00]
+            string_out = astroUtils.eng.tle_stk_tester(matlab.double(date),nargout=1)
+            expected_str = '{}\n{}'.format('1 23224           19086.70833333  .00003060  00000-0  65926-3 0 00000',
+                                           '2 23224 066.7110 273.5175 0238424 271.4862 304.1474 14.42081959000016')
 
             self.assertEqual(string_out,expected_str)
         else:

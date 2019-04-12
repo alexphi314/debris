@@ -1,13 +1,15 @@
 %%  Alex Philpott
 %% Connect to STK and return a new TLE
-function [line1,line2] = tle_from_stk(r,v,num)
+function [line1,line2] = tle_from_stk(r,v,num,date)
 %TLE_FROM_STK Given state vector in ECI, return TLE
-% [line1,line2] = tle_from_stk(r,v,num)
+% [line1,line2] = tle_from_stk(r,v,num,date)
 
 %% Connect to STK
 uiApplication = actxGetRunningServer('STK11.application');
 root = uiApplication.Personality2;
-root.NewScenario('Debris_TLE_Scenario');
+scenario = root.Children.New('eScenario','Debris_TLE_Scenario');
+date_str = datestr(date,'dd mmm yyyy HH:MM:SS.FFF');
+scenario.SetTimePeriod(date_str,'+24hr');
 
 %% Initialize Satellite
 satellite = root.CurrentScenario.Children.New('eSatellite','debris');
@@ -18,15 +20,13 @@ propagator.InitialState.Representation.AssignCartesian('eCoordinateSystemJ2000',
 propagator.Propagate;
 
 %% Generate TLE
-today = datevec(datetime('now'));
-tom = datevec(datetime('tomorrow'));
-
-today = [today(1:3),17,00,00];
-tom = [tom(1:3),15,00,00];
-tod_str = datestr(today,'dd mmm yyyy HH:MM:SS.FFF');
-tom_str = datestr(tom,'dd mmm yyyy HH:MM:SS.FFF');
+startt = date;
+startt(4) = startt(4)+1;
+endt = [startt(1:2),startt(3)+1,date(4)-1,00,00];
+tod_str = datestr(startt,'dd mmm yyyy HH:MM:SS.FFF');
+tom_str = datestr(endt,'dd mmm yyyy HH:MM:SS.FFF');
 cmd = sprintf('GenerateTLE */Satellite/debris Sampling "%s" "%s" 300.0 "%s" %i 21 0.0003 SGP4',...
-              tod_str,tom_str,tod_str,num);
+              tod_str,tom_str,date_str,num);
           
 root.ExecuteCommand([cmd]);
 DP = satellite.DataProviders.Item('Element Set').Exec;
