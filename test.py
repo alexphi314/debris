@@ -4,6 +4,8 @@
 import unittest
 import math
 import datetime as dt
+import platform
+import threading
 
 import numpy as np
 import pandas as pd
@@ -136,21 +138,26 @@ class Test_generate_trajectory(unittest.TestCase):
         startTime = dt.datetime.now()
         endTime = startTime + dt.timedelta(days=1)
         steps = 24
+        matlabLock = threading.RLock()
 
-        obj.generate_trajectory(startTime, endTime, steps)
+        obj.generate_trajectory(startTime, endTime, steps, matlabLock)
         self.assertEqual(obj.trajectory.iloc[0]['Times'], startTime)
         self.assertEqual(obj.trajectory.iloc[-1]['Times'], endTime)
         self.assertEqual(len(obj.trajectory['Times']),25)
 
-        r, v = obj.get_eci_state(startTime)
+        r, v = obj.get_teme_state(startTime)
         r = r.tolist()[0]
         v = v.tolist()[0]
-        rout, vout = obj.parse_trajectory(0)
+        rout, vout = obj.parse_trajectory(indx=0)
         self.vectors_equal(r,rout)
         self.vectors_equal(v,vout)
 
+        rout, vout = obj.parse_trajectory(time=startTime)
+        self.vectors_equal(r, rout)
+        self.vectors_equal(v, vout)
+
         ## Test TEME trajectory
-        obj.generate_trajectory(startTime, endTime, steps, False)
+        obj.generate_trajectory(startTime, endTime, steps, matlabLock)
         self.assertEqual(obj.trajectory.iloc[0]['Times'], startTime)
         self.assertEqual(obj.trajectory.iloc[-1]['Times'], endTime)
         self.assertEqual(len(obj.trajectory['Times']), 25)
@@ -181,11 +188,12 @@ class Test_update_tle(unittest.TestCase):
         str = '{}\n{}\n{}'.format(line0, line1, line2)
 
         obj = Object(tle_str=str)
+        matlabLock = threading.RLock()
         obj.satNum = 99999
         r = np.array([-1761336.083,5782317.269,-3609765.529])
         v = np.array([-2316.498,-4430.769,-5686.826])
 
-        tle = obj.update_tle(r,v)
+        tle = obj.update_tle(r,v,matlabLock)
 
 class Test_get_JD(unittest.TestCase):
     def test_function(self):
@@ -200,6 +208,7 @@ class Test_teme2eci(unittest.TestCase):
                                   '2 00005  34.2682 348.7242 1859667 331.7664  19.3264 10.82419157413667')
         obj = Object(tle)
         time = obj.epoch + dt.timedelta(days=3)
+        matlabLock = threading.RLock()
 
         r_teme = [[-9060.47373569], [4658.70952502], [813.68673153]] #km
         v_teme = [[-2.232832783], [-4.110453490], [-3.157345433]] #km/s
@@ -207,7 +216,8 @@ class Test_teme2eci(unittest.TestCase):
         r_eci = [[-9059.9413786],[4659.6972000],[813.9588875]]
         v_eci = [[-2.233348094],[-4.110136162],[-3.157394074]]
 
-        r_eci_out, v_eci_out = astroUtils.teme2eci(np.array(r_teme), np.array(v_teme), time, dt.timedelta(seconds=32))
+        r_eci_out, v_eci_out = astroUtils.teme2eci(np.array(r_teme), np.array(v_teme), time,
+                                                   dt.timedelta(seconds=32), matlabLock)
 
         r_eci = np.array(r_eci).T.tolist()[0]
         v_eci = np.array(v_eci).T.tolist()[0]
@@ -355,6 +365,17 @@ class Test_split_array(unittest.TestCase):
 
             for j in range(0, len(truei)):
                     self.assertEqual(testi[j], truei[j])
+
+class Test_matlab_tle_connection(unittest.TestCase):
+    def test_function(self):
+        if platform.system() == 'Windows':
+            string_out = astroUtils.eng.tle_stk_tester(nargout=1)
+            expected_str = '{}\n{}'.format('1 23224           19102.70833333  .00001693  00000-0  36498-3 0 00001',
+                                           '2 23224 066.6985 273.4079 0238292 271.4615 160.4538 14.42082503000027')
+
+            self.assertEqual(string_out,expected_str)
+        else:
+            print('Skipping STK test as not running on Windows.')
 
 if __name__ == '__main__':
     unittest.main()
