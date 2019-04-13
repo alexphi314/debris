@@ -194,7 +194,7 @@ class Test_update_tle(unittest.TestCase):
         r = np.array([-1761336.083,5782317.269,-3609765.529])
         v = np.array([-2316.498,-4430.769,-5686.826])
 
-        tle = obj.update_tle(r,v,matlabLock)
+        tle = obj.update_tle(r, v, matlabLock, dt.datetime.now())
 
 class Test_get_JD(unittest.TestCase):
     def test_function(self):
@@ -370,7 +370,7 @@ class Test_split_array(unittest.TestCase):
 class Test_matlab_tle_connection(unittest.TestCase):
     def test_function(self):
         if platform.system() == 'Windows':
-            date = [2019,3,27,17,00,00]
+            date = [2019,3,27,17,0,0]
             string_out = astroUtils.eng.tle_stk_tester(matlab.double(date),nargout=1)
             expected_str = '{}\n{}'.format('1 23224           19086.70833333  .00003060  00000-0  65926-3 0 00000',
                                            '2 23224 066.7110 273.5175 0238424 271.4862 304.1474 14.42081959000016')

@@ -247,7 +247,7 @@ if __name__ == "__main__":
     startTime = dt.datetime(2019,3,27,17,00,00)
     endTime = startTime + dt.timedelta(days=numDays)
     steps = numDays*6*24
-    enableLaser = False
+    enableLaser = True
 
     laser = None
     laserIndx = None

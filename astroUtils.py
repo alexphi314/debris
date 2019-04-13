@@ -56,11 +56,11 @@ class Object:
         :param string tle_str: tle in string format, used to define object params
         """
 
-        self.tle = tle_str
-        self.parse_tle()
-
         self.a_s = []
         self.i_s = []
+
+        self.tle = tle_str
+        self.parse_tle()
 
     def parse_tle(self):
         """
@@ -201,7 +201,7 @@ class Object:
 
                     r_ECI, v_ECI = teme2eci(r.T, v.T, time, delta_at, matlabLock)
 
-                    self.tle = self.update_tle(r_ECI.T, v_ECI.T, matlabLock)
+                    self.tle = self.update_tle(r_ECI.T, v_ECI.T, matlabLock, time)
                     self.parse_tle()
 
             self.trajectoryTimes.append(time)
@@ -212,23 +212,25 @@ class Object:
         self.trajectory = pd.DataFrame(data=combined_rv, columns=['Posx','Posy','Posz','Velx','Vely','Velz'])
         self.trajectory['Times'] = self.trajectoryTimes
 
-    def update_tle(self, r, v, matlabLock):
+    def update_tle(self, r, v, matlabLock, time):
         """
         Return an updated TLE from STK using the input state vectors in ECI
 
         :param numpy.array r: radius in ECI [m]
         :param numpy.array v: velocity in ECI [m]
         :param threading.RLock matlabLock: lock for matlab access
+        :param datetime.datetime time: current time
         :return: string tle: new TLE
         """
 
         ## Convert to km
         r = r/1000
         v = v/1000
+        arry = [time.year, time.month, time.day, 17, 0, 0]
 
         with matlabLock:
             line1, line2 = eng.tle_from_stk(matlab.double(r.tolist()), matlab.double(v.tolist()),
-                                           matlab.int64([self.satNum]),nargout=2)
+                                           matlab.int64([self.satNum]), matlab.double(arry), nargout=2)
         tle = '0 {}\n{}\n{}'.format(self.satName, line1, line2)
         return tle
 
@@ -274,7 +276,8 @@ class Laser(Object):
     """
     Object class specifically for a Laser
     """
-    chargingTime = 122646.51 #sec, from Ethen's sheet
+    chargingRate = 380.75 #W
+    laserPower = 32.3e3 #kW
     range = 100e3
     deltaV_persec = 0.4  # m/s
     def __init__(self, obj, enable):
@@ -323,15 +326,17 @@ class Laser(Object):
         if not self.enable:
             return False
 
-        if len(self._fireTimes) == 0:
-            return True
+        lastFireDuration = self._fireTimes.iloc[-1]['Duration']
 
-        lastFireTime = self._fireTimes.iloc[-1]['Start']
+        powerUsed = self.laserPower*lastFireDuration
+        chargeTime = powerUsed/self.chargingRate + 60 #add buffer of 60 sec
 
-        if (time - lastFireTime).total_seconds() > self.chargingTime:
-            return True
+        for i in range(0,len(self._fireTimes)):
+            fireTime = self._fireTimes.iloc[i]['Start']
+            if abs((time - fireTime).total_seconds()) < chargeTime:
+                return False
 
-        return False
+        return True
 
     def get_fire_times(self):
         """
