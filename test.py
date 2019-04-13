@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 import matlab
 
-from astroUtils import Object
+from astroUtils import Object, Laser
 import astroUtils
 
 def assert_matrix_almost_equal(testCase,true,test):
@@ -183,18 +183,21 @@ class Test_generate_trajectory(unittest.TestCase):
 
 class Test_update_tle(unittest.TestCase):
     def test_function(self):
-        line0 = '0 VANGUARD 1'
-        line1 = '1     5U 58002B   19075.71745479 -.00000160  00000-0 -17930-3 0  9998'
-        line2 = '2     5  34.2430 201.2113 1845233  88.2396 292.7424 10.84775486155534'
-        str = '{}\n{}\n{}'.format(line0, line1, line2)
+        if platform.system() == 'Windows':
+            line0 = '0 VANGUARD 1'
+            line1 = '1     5U 58002B   19075.71745479 -.00000160  00000-0 -17930-3 0  9998'
+            line2 = '2     5  34.2430 201.2113 1845233  88.2396 292.7424 10.84775486155534'
+            str = '{}\n{}\n{}'.format(line0, line1, line2)
 
-        obj = Object(tle_str=str)
-        matlabLock = threading.RLock()
-        obj.satNum = 99999
-        r = np.array([-1761336.083,5782317.269,-3609765.529])
-        v = np.array([-2316.498,-4430.769,-5686.826])
+            obj = Object(tle_str=str)
+            matlabLock = threading.RLock()
+            obj.satNum = 99999
+            r = np.array([-1761336.083,5782317.269,-3609765.529])
+            v = np.array([-2316.498,-4430.769,-5686.826])
 
-        tle = obj.update_tle(r, v, matlabLock, dt.datetime.now())
+            tle = obj.update_tle(r, v, matlabLock, dt.datetime.now())
+        else:
+            print('Skipping Test_update_tle since not on Windows')
 
 class Test_get_JD(unittest.TestCase):
     def test_function(self):
@@ -377,7 +380,71 @@ class Test_matlab_tle_connection(unittest.TestCase):
 
             self.assertEqual(string_out,expected_str)
         else:
-            print('Skipping STK test as not running on Windows.')
+            print('Skipping Test_matlab_tle_connection as not running on Windows.')
+
+class Test_is_ready(unittest.TestCase):
+    def test_function(self):
+        tle = '{}\n{}\n{}'.format('TEST', '1 00005U 58002B   00179.78495062  .00000023  00000-0  28098-4 0  4753',
+                                  '2 00005  34.2682 348.7242 1859667 331.7664  19.3264 10.82419157413667')
+        obj = Object(tle)
+
+        laser = Laser(obj, True)
+        time = dt.datetime.now()
+
+        self.assertTrue(laser.is_ready(time, 60))
+
+        laser.fire(time,time+dt.timedelta(seconds=60),obj)
+
+        # Single laser fire after
+        self.assertFalse(laser.is_ready(time+dt.timedelta(seconds=10),60))
+        self.assertFalse(laser.is_ready(time, 60))
+        self.assertFalse(laser.is_ready(time + dt.timedelta(seconds=5057), 60))
+
+        self.assertTrue(laser.is_ready(time + dt.timedelta(seconds=16000),60))
+        laser.fire(time + dt.timedelta(seconds=16000),time + dt.timedelta(seconds=16060),obj)
+
+        # Second laser fire after
+        self.assertFalse(laser.is_ready(time + dt.timedelta(seconds=16001),1))
+
+        # Laser fire before
+        self.assertTrue(laser.is_ready(time - dt.timedelta(seconds=6000), 60))
+        self.assertFalse(laser.is_ready(time - dt.timedelta(seconds=2000), 60))
+        self.assertTrue(laser.is_ready(time - dt.timedelta(seconds=2000), 1))
+        laser.fire(time - dt.timedelta(seconds=6000), time - dt.timedelta(seconds=5940), obj)
+
+        # Negative laser fire tests
+        self.assertFalse(laser.is_ready(time - dt.timedelta(seconds=7000), 60))
+        self.assertTrue(laser.is_ready(time - dt.timedelta(seconds=7000), 1))
+        self.assertTrue(laser.is_ready(time - dt.timedelta(seconds=12000), 60))
+
+        # Test for fire between the two positive fires
+        self.assertTrue(laser.is_ready(time + dt.timedelta(seconds=6000), 60))
+        self.assertTrue(laser.is_ready(time + dt.timedelta(seconds=10000), 60))
+        self.assertFalse(laser.is_ready(time + dt.timedelta(seconds=10942), 60))
+        self.assertFalse(laser.is_ready(time + dt.timedelta(seconds=11060), 60))
+
+        # Second negative laser fire
+        self.assertTrue(laser.is_ready(time - dt.timedelta(seconds=14000), 60))
+        laser.fire(time - dt.timedelta(seconds=12000), time - dt.timedelta(seconds=12060), obj)
+
+        # Negative laser fire time tests
+        self.assertFalse(laser.is_ready(time - dt.timedelta(seconds=8000), 60))
+        self.assertFalse(laser.is_ready(time - dt.timedelta(seconds=6000), 60))
+        self.assertFalse(laser.is_ready(time - dt.timedelta(seconds=6942), 60))
+        self.assertFalse(laser.is_ready(time - dt.timedelta(seconds=11060), 60))
+
+        # Check that overlapping fires is false
+        laser.fire(time + dt.timedelta(seconds=20000), time + dt.timedelta(seconds=20010), obj)
+        self.assertFalse(laser.is_ready(time+dt.timedelta(seconds=20005),1))
+        self.assertTrue(laser.is_ready(time + dt.timedelta(seconds=21000), 2))
+        laser.fire(time + dt.timedelta(seconds=21000), time + dt.timedelta(seconds=21002), obj)
+        self.assertFalse(laser.is_ready(time + dt.timedelta(seconds=21001), 0.5))
+
+        fireTimes = laser.get_fire_times()
+        self.assertEqual(fireTimes.iloc[0]['Start'],time - dt.timedelta(seconds=12000))
+        self.assertEqual(fireTimes.iloc[1]['Start'],time - dt.timedelta(seconds=6000))
+        self.assertEqual(fireTimes.iloc[2]['Start'],time)
+        self.assertEqual(fireTimes.iloc[3]['Start'],time + dt.timedelta(seconds=16000))
 
 if __name__ == '__main__':
     unittest.main()

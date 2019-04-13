@@ -192,10 +192,11 @@ class Object:
                 laserPos, laserVel = laserObject.parse_trajectory(time=time)
                 relPos = (r - np.array(laserPos))[0]
                 relDist = np.linalg.norm(relPos)
+                fireDuration = 60 #sec
 
-                if relDist < laserObject.range and laserObject.is_ready(time):
+                if relDist < laserObject.range and laserObject.is_ready(time, fireDuration):
                     print('Firing laser on {} at {}'.format(self.satName, time.strftime('%Y-%m-%d %H:%M:%S')))
-                    deltaV = laserObject.fire(time, time+dt.timedelta(seconds=60), self)
+                    deltaV = laserObject.fire(time, time+dt.timedelta(seconds=fireDuration), self)
                     unitPos = relPos / relDist
                     v = v + deltaV*unitPos
 
@@ -307,6 +308,7 @@ class Laser(Object):
 
         tempS = pd.Series([startTime, endTime, (endTime-startTime).total_seconds()],index=['Start','End','Duration'])
         self._fireTimes = append(self._fireTimes, tempS)
+        self._fireTimes = self._fireTimes.sort_values(by='Start')
 
         if deb not in self._fireObjs:
             self._fireObjs.append(deb)
@@ -316,25 +318,68 @@ class Laser(Object):
 
         return deltaV
 
-    def is_ready(self, time):
+    def is_ready(self, time, duration):
         """
         Return whether the laser is charged and able to fire at time
 
         :param datetime.datetime time: time of potential firing
+        :param float duration: length of proposed laser firing [sec]
         :return: bool ready
         """
         if not self.enable:
             return False
 
-        lastFireDuration = self._fireTimes.iloc[-1]['Duration']
+        if len(self._fireTimes) != 0:
+            relTimes = np.array([(self._fireTimes.iloc[i]['Start'] - time).total_seconds()
+                        for i in range(0,len(self._fireTimes))])
+            indices = np.where(relTimes > 0)
 
-        powerUsed = self.laserPower*lastFireDuration
-        chargeTime = powerUsed/self.chargingRate + 60 #add buffer of 60 sec
+            if len(indices[0]) == 0:
+                indices = np.where(relTimes < 0)
 
-        for i in range(0,len(self._fireTimes)):
-            fireTime = self._fireTimes.iloc[i]['Start']
-            if abs((time - fireTime).total_seconds()) < chargeTime:
-                return False
+                if len(indices[0]) == 0:
+                    return False
+
+                changeOver = indices[0][-1]
+                beforeRow = self._fireTimes.iloc[changeOver]
+                beforeTime = beforeRow['End']
+                delta = (beforeTime - time).total_seconds()
+                nrgUsed = self.laserPower * beforeRow['Duration']
+            else:
+                changeOver = indices[0][0]
+
+                afterTime = self._fireTimes.iloc[changeOver]['Start']
+                if changeOver > 1:
+                    beforeRow = self._fireTimes.iloc[changeOver-1]
+                    beforeTime = beforeRow['End']
+
+                    delta1 = (afterTime - time).total_seconds()
+                    nrgUsed1 = self.laserPower*duration
+
+                    delta2 = (time - beforeTime).total_seconds()
+                    nrgUsed2 = self.laserPower*beforeRow['Duration']
+
+                    return self.ready(nrgUsed1, delta1) and self.ready(nrgUsed2, delta2)
+
+                else:
+                    delta = (afterTime - time).total_seconds()
+                    nrgUsed = self.laserPower*duration
+
+            return self.ready(nrgUsed, delta)
+
+        return True
+
+    def ready(self, nrgUsed, delta):
+        """
+        Given energy used and the elapsed time, calculate if the energy has been re-charged
+
+        :param float nrgUsed: energy used in the last pulse
+        :param float delta: elapsed time in seconds
+        :return: bool ready: True if laser is ready to fire again
+        """
+        chargeTime = nrgUsed / self.chargingRate
+        if chargeTime > abs(delta):
+            return False
 
         return True
 
