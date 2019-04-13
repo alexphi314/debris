@@ -243,7 +243,7 @@ if __name__ == "__main__":
     print('Starting sim...')
     print('Running with {} pieces of debris and {} sats'.format(len(deb), len(sats)))
     objects = deb + sats
-    numDays = 14
+    numDays = 7
     startTime = dt.datetime(2019,3,27,17,00,00)
     endTime = startTime + dt.timedelta(days=numDays)
     steps = numDays*6*24
@@ -370,70 +370,86 @@ if __name__ == "__main__":
     print('Running from {} to {}, with {} steps'.format(
         startTime.strftime(frmat), endTime.strftime(frmat), steps
     ))
-    for laserObj in laser_objs:
-        simulator.setLaser(laserObj)
 
-        for obj in objects:
-            if obj not in simulator.badTrajs:
-                simulator.passQueue.put(obj)
+    for obj in objects:
+        if obj not in simulator.badTrajs:
+            simulator.passQueue.put(obj)
 
-        simulator.passQueue.join()
+    simulator.passQueue.join()
 
-        ###############################
-        ### Output Results and Plot ###
-        ###############################
+    ###############################
+    ### Output Results and Plot ###
+    ###############################
 
-        passes = simulator.get_passes()
+    passes = simulator.get_passes()
 
-        durations = simulator.get_durations()
-        lower_dur = 0
-        upper_dur = durations['Duration'].max()
-        dur_delim = 60
-        np_dur = np.linspace(lower_dur, upper_dur, int((upper_dur - lower_dur) / dur_delim) + 1)
-        durs = np.zeros([len(np_dur)])
+    durations = simulator.get_durations()
+    lower_dur = 0
+    upper_dur = durations['Duration'].max()
+    dur_delim = 60
+    np_dur = np.linspace(lower_dur, upper_dur, int((upper_dur - lower_dur) / dur_delim) + 1)
+    durs = np.zeros([len(np_dur)])
 
-        print('')
-        print('Laser Object: {} ({})'.format(laserObj.satName, laserObj.satNum))
-        uniquePasses = set([passes.iloc[i]['Number'] for i in range(0,len(passes))])
-        print('Got {} passes, {} unique objects'.format(len(passes), len(uniquePasses)))
+    print('')
+    print('Laser Object: {} ({})'.format(simulator.laserObject.satName, simulator.laserObject.satNum))
+    uniquePasses = set([passes.iloc[i]['Number'] for i in range(0,len(passes))])
+    print('Got {} passes, {} unique objects'.format(len(passes), len(uniquePasses)))
 
-        alt = (simulator.laserObject.a - Re)/1000
-        nearest_alt = rnd(alt, alt_delim)
-        nearest_inc = rnd(math.degrees(simulator.laserObject.i), i_delim)
+    alt = (simulator.laserObject.a - Re)/1000
+    nearest_alt = rnd(alt, alt_delim)
+    nearest_inc = rnd(math.degrees(simulator.laserObject.i), i_delim)
 
-        x_coord = np.where(np_alt == nearest_alt)[0][0]
-        y_coord = np.where(np_inc == nearest_inc)[0][0]
-        uniq[y_coord][x_coord] += len(uniquePasses)
-        tot[y_coord][x_coord] += len(passes)
+    x_coord = np.where(np_alt == nearest_alt)[0][0]
+    y_coord = np.where(np_inc == nearest_inc)[0][0]
+    uniq[y_coord][x_coord] += len(uniquePasses)
+    tot[y_coord][x_coord] += len(passes)
 
-        for indx, row in passes.iterrows():
-            nearest_dist = rnd(row['Distance [km]'], d_delim)
-            nearest_deb_i = rnd(row['Deb I'], i_delim)
-            nearest_vel = rnd(row['Rel V'], v_delim)
+    for indx, row in passes.iterrows():
+        nearest_dist = rnd(row['Distance [km]'], d_delim)
+        nearest_deb_i = rnd(row['Deb I'], i_delim)
+        nearest_vel = rnd(row['Rel V'], v_delim)
 
-            dist_coord = np.where(np_dist == nearest_dist)[0][0]
-            deb_inc_coord = np.where(np_inc == nearest_deb_i)[0][0]
-            vel_coord = np.where(np_vel == nearest_vel)[0][0]
+        dist_coord = np.where(np_dist == nearest_dist)[0][0]
+        deb_inc_coord = np.where(np_inc == nearest_deb_i)[0][0]
+        vel_coord = np.where(np_vel == nearest_vel)[0][0]
 
-            if row['Rel V'] < supper_v:
-                nearest_svel = rnd(row['Rel V'], sv_delim)
-                svel_coord = np.where(np_svel == nearest_svel)[0][0]
-                svel[svel_coord][dist_coord] += 1
+        if row['Rel V'] < supper_v:
+            nearest_svel = rnd(row['Rel V'], sv_delim)
+            svel_coord = np.where(np_svel == nearest_svel)[0][0]
+            svel[svel_coord][dist_coord] += 1
 
-            vel[vel_coord][dist_coord]+=1
-            inc_arry[deb_inc_coord][y_coord]+=1
+        vel[vel_coord][dist_coord]+=1
+        inc_arry[deb_inc_coord][y_coord]+=1
 
-        for indx, row in durations.iterrows():
-            nearest_dur = rnd(row['Duration'], dur_delim)
-            coord = np.where(np_dur == nearest_dur)[0][0]
-            durs[coord] += 1
+    for indx, row in durations.iterrows():
+        nearest_dur = rnd(row['Duration'], dur_delim)
+        coord = np.where(np_dur == nearest_dur)[0][0]
+        durs[coord] += 1
 
-        output_file('Plots/passDurations_{}_{}.html'.format(laserObj.satNum,steps))
-        p6 =figure(title='Pass Duration Distribution', x_axis_label='Duration (sec)', y_axis_label='Number of Passes',
-                    x_range=(lower_dur, upper_dur), y_range=(0, durs.max()),
-                    tooltips=[("Duration", "$x"), ("Number", "$y")])
-        p6.vbar(x=np_dur, top=durs, bottom=0, width=dur_delim)
-        show(p6)
+    output_file('Plots/passDurations_{}_{}.html'.format(simulator.laserObject.satNum,steps))
+    p6 =figure(title='Pass Duration Distribution', x_axis_label='Duration (sec)', y_axis_label='Number of Passes',
+                x_range=(lower_dur, upper_dur), y_range=(0, durs.max()),
+                tooltips=[("Duration", "$x"), ("Number", "$y")])
+    p6.vbar(x=np_dur, top=durs, bottom=0, width=dur_delim)
+
+    delta_as = []
+    delta_is = []
+
+    for obj in simulator.laserObject.get_fire_objs():
+        for i in range(1,len(obj.a_s)):
+            deltaA = obj.a_s[i] - obj.a_s[i-1]
+            delta_as.append(deltaA)
+
+        for i in range(1,len(obj.i_s)):
+            deltaI = obj.i_s[i] - obj.i_s[i-1]
+            delta_is.append(math.degrees(deltaI))
+
+    p9 = figure(title='Orbit Changes', x_axis_label='Change in Semi-Major Axis [m]',
+                y_axis_label='Change in Inclination [deg]')
+    p9.scatter(x=delta_as,y=delta_is)
+
+    grid = gridplot([[p6,p9]])
+    show(grid)
 
     uniq_x, uniq_y = get_bounds(uniq, np_alt, np_inc)
     tot_x, tot_y = get_bounds(tot, np_alt, np_inc)
