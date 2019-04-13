@@ -349,7 +349,7 @@ class Laser(Object):
                 changeOver = indices[0][0]
 
                 afterTime = self._fireTimes.iloc[changeOver]['Start']
-                if changeOver > 1:
+                if changeOver >= 1:
                     beforeRow = self._fireTimes.iloc[changeOver-1]
                     beforeTime = beforeRow['End']
 
