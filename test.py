@@ -391,53 +391,53 @@ class Test_is_ready(unittest.TestCase):
         laser = Laser(obj, True)
         time = dt.datetime.now()
 
-        self.assertTrue(laser.is_ready(time, 60))
+        self.assertTrue(laser.is_ready(time, 30))
 
-        laser.fire(time,time+dt.timedelta(seconds=60),obj)
-        self.assertFalse(laser.is_ready(time,1))
+        laser.fire(time,time+dt.timedelta(seconds=30),obj)
+        self.assertFalse(laser.is_ready(time,0.5))
         fireTimes = laser.get_fire_times()
         self.assertEqual(fireTimes.iloc[0]['Start'], time)
 
         # Single laser fire after
-        self.assertFalse(laser.is_ready(time+dt.timedelta(seconds=10),60))
-        self.assertFalse(laser.is_ready(time, 60))
-        self.assertFalse(laser.is_ready(time + dt.timedelta(seconds=5057), 60))
+        self.assertFalse(laser.is_ready(time+dt.timedelta(seconds=10),30))
+        self.assertFalse(laser.is_ready(time, 30))
+        self.assertFalse(laser.is_ready(time + dt.timedelta(seconds=5057), 30))
 
-        self.assertTrue(laser.is_ready(time + dt.timedelta(seconds=16000),60))
-        laser.fire(time + dt.timedelta(seconds=16000),time + dt.timedelta(seconds=16060),obj)
+        self.assertTrue(laser.is_ready(time + dt.timedelta(seconds=16000),30))
+        laser.fire(time + dt.timedelta(seconds=16000),time + dt.timedelta(seconds=16030),obj)
         fireTimes = laser.get_fire_times()
         self.assertEqual(fireTimes.iloc[0]['Start'], time)
         self.assertEqual(fireTimes.iloc[1]['Start'], time + dt.timedelta(seconds=16000))
 
         # Second laser fire after
-        self.assertFalse(laser.is_ready(time + dt.timedelta(seconds=16001),1))
+        self.assertFalse(laser.is_ready(time + dt.timedelta(seconds=16001),0.5))
 
         # Laser fire before
-        self.assertTrue(laser.is_ready(time - dt.timedelta(seconds=6000), 60))
-        self.assertFalse(laser.is_ready(time - dt.timedelta(seconds=2000), 60))
-        self.assertTrue(laser.is_ready(time - dt.timedelta(seconds=2000), 1))
-        laser.fire(time - dt.timedelta(seconds=6000), time - dt.timedelta(seconds=5940), obj)
-        self.assertFalse(laser.is_ready(time - dt.timedelta(seconds=2000), 1))
-        self.assertFalse(laser.is_ready(time, 1))
+        self.assertTrue(laser.is_ready(time - dt.timedelta(seconds=6000), 30))
+        self.assertFalse(laser.is_ready(time - dt.timedelta(seconds=2000), 30))
+        self.assertTrue(laser.is_ready(time - dt.timedelta(seconds=2000), 0.5))
+        laser.fire(time - dt.timedelta(seconds=6000), time - dt.timedelta(seconds=5970), obj)
+        self.assertFalse(laser.is_ready(time - dt.timedelta(seconds=2000), 0.5))
+        self.assertFalse(laser.is_ready(time, 0.5))
         fireTimes = laser.get_fire_times()
         self.assertEqual(fireTimes.iloc[0]['Start'], time - dt.timedelta(seconds=6000))
         self.assertEqual(fireTimes.iloc[1]['Start'], time)
         self.assertEqual(fireTimes.iloc[2]['Start'], time + dt.timedelta(seconds=16000))
 
         # Negative laser fire tests
-        self.assertFalse(laser.is_ready(time - dt.timedelta(seconds=7000), 60))
-        self.assertTrue(laser.is_ready(time - dt.timedelta(seconds=7000), 1))
-        self.assertTrue(laser.is_ready(time - dt.timedelta(seconds=12000), 60))
+        self.assertFalse(laser.is_ready(time - dt.timedelta(seconds=7000), 30))
+        self.assertTrue(laser.is_ready(time - dt.timedelta(seconds=7000), 0.5))
+        self.assertTrue(laser.is_ready(time - dt.timedelta(seconds=12000), 30))
 
         # Test for fire between the two positive fires
-        self.assertTrue(laser.is_ready(time + dt.timedelta(seconds=6000), 60))
-        self.assertTrue(laser.is_ready(time + dt.timedelta(seconds=10000), 60))
-        self.assertFalse(laser.is_ready(time + dt.timedelta(seconds=10942), 60))
-        self.assertFalse(laser.is_ready(time + dt.timedelta(seconds=11060), 60))
+        self.assertTrue(laser.is_ready(time + dt.timedelta(seconds=6000), 30))
+        self.assertTrue(laser.is_ready(time + dt.timedelta(seconds=10000), 30))
+        self.assertFalse(laser.is_ready(time + dt.timedelta(seconds=10942), 30))
+        self.assertFalse(laser.is_ready(time + dt.timedelta(seconds=11060), 30))
 
         # Second negative laser fire
-        self.assertTrue(laser.is_ready(time - dt.timedelta(seconds=14000), 60))
-        laser.fire(time - dt.timedelta(seconds=12000), time - dt.timedelta(seconds=12060), obj)
+        self.assertTrue(laser.is_ready(time - dt.timedelta(seconds=14000), 30))
+        laser.fire(time - dt.timedelta(seconds=12000), time - dt.timedelta(seconds=12030), obj)
         fireTimes = laser.get_fire_times()
         self.assertEqual(fireTimes.iloc[0]['Start'], time - dt.timedelta(seconds=12000))
         self.assertEqual(fireTimes.iloc[1]['Start'], time - dt.timedelta(seconds=6000))
@@ -445,24 +445,24 @@ class Test_is_ready(unittest.TestCase):
         self.assertEqual(fireTimes.iloc[3]['Start'], time + dt.timedelta(seconds=16000))
 
         # Negative laser fire time tests
-        self.assertFalse(laser.is_ready(time - dt.timedelta(seconds=8000), 60))
-        self.assertFalse(laser.is_ready(time - dt.timedelta(seconds=6000), 60))
-        self.assertFalse(laser.is_ready(time - dt.timedelta(seconds=6942), 60))
-        self.assertFalse(laser.is_ready(time - dt.timedelta(seconds=11060), 60))
+        self.assertFalse(laser.is_ready(time - dt.timedelta(seconds=8000), 30))
+        self.assertFalse(laser.is_ready(time - dt.timedelta(seconds=6000), 30))
+        self.assertFalse(laser.is_ready(time - dt.timedelta(seconds=6942), 30))
+        self.assertFalse(laser.is_ready(time - dt.timedelta(seconds=11060), 30))
 
         # Check that overlapping fires is false
-        laser.fire(time + dt.timedelta(seconds=20000), time + dt.timedelta(seconds=20010), obj)
-        self.assertFalse(laser.is_ready(time+dt.timedelta(seconds=20005),1))
-        self.assertTrue(laser.is_ready(time + dt.timedelta(seconds=21000), 2))
-        laser.fire(time + dt.timedelta(seconds=21000), time + dt.timedelta(seconds=21002), obj)
-        self.assertFalse(laser.is_ready(time + dt.timedelta(seconds=21001), 0.5))
+        laser.fire(time + dt.timedelta(seconds=20000), time + dt.timedelta(seconds=20005), obj)
+        self.assertFalse(laser.is_ready(time+dt.timedelta(seconds=20002.5),0.5))
+        self.assertTrue(laser.is_ready(time + dt.timedelta(seconds=21000), 1))
+        laser.fire(time + dt.timedelta(seconds=21000), time + dt.timedelta(seconds=21001), obj)
+        self.assertFalse(laser.is_ready(time + dt.timedelta(seconds=21001), 0.25))
 
         # Check in between times is good if short enough
-        self.assertTrue(laser.is_ready(time+dt.timedelta(seconds=6000),60))
-        self.assertFalse(laser.is_ready(time+dt.timedelta(seconds=6000),150))
+        self.assertTrue(laser.is_ready(time+dt.timedelta(seconds=6000),30))
+        self.assertFalse(laser.is_ready(time+dt.timedelta(seconds=6000),75))
 
-        self.assertTrue(laser.is_ready(time + dt.timedelta(seconds=10000), 60))
-        laser.fire(time + dt.timedelta(seconds=10000), time + dt.timedelta(seconds=10060), obj)
+        self.assertTrue(laser.is_ready(time + dt.timedelta(seconds=10000), 30))
+        laser.fire(time + dt.timedelta(seconds=10000), time + dt.timedelta(seconds=10030), obj)
 
         fireTimes = laser.get_fire_times()
         self.assertEqual(fireTimes.iloc[0]['Start'],time - dt.timedelta(seconds=12000))

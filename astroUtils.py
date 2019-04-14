@@ -377,7 +377,8 @@ class Laser(Object):
         :param float delta: elapsed time in seconds
         :return: bool ready: True if laser is ready to fire again
         """
-        chargeTime = nrgUsed / self.chargingRate
+        ## TODO: Better account for time in eclipse
+        chargeTime = nrgUsed / self.chargingRate * 2 #multiply by 2 to account for time in eclipse, on average
         if chargeTime > abs(delta):
             return False
 
