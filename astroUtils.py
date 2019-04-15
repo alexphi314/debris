@@ -6,6 +6,7 @@ import math
 import datetime as dt
 import re
 import os
+import platform
 
 import numpy as np
 import pandas as pd
@@ -174,7 +175,6 @@ class Object:
         """
 
         deltaTime = int((endTime - startTime).total_seconds())
-        self.timeStep = deltaTime/steps
         step = round(deltaTime / steps)
         times = list(range(0, deltaTime, step))
         times.append(deltaTime)
@@ -189,13 +189,18 @@ class Object:
             r, v = self.get_teme_state(time)
 
             if laserObject is not None and laserObject.enable:
-                laserPos, laserVel = laserObject.parse_trajectory(time=time)
+                laserPos, laserVel = laserObject.parse_trajectory(indx=indx)
+                assert laserObject.trajectoryTimes[indx] == time
+
                 relPos = (r - np.array(laserPos))[0]
                 relDist = np.linalg.norm(relPos)
                 fireDuration = 60 #sec
 
-                if relDist < laserObject.range and laserObject.is_ready(time, fireDuration):
-                    print('Firing laser on {} ({}) at {}'.format(self.satName, self.satNum, time.strftime('%Y-%m-%d %H:%M:%S')))
+                if relDist < laserObject.range and laserObject.is_ready(time, fireDuration) \
+                        and platform.system() == 'Windows':
+                    print('Firing laser on {} ({}) at {}'.format(
+                        self.satName, self.satNum, time.strftime('%Y-%m-%d %H:%M:%S'))
+                    )
                     deltaV = laserObject.fire(time, time+dt.timedelta(seconds=fireDuration), self)
                     unitPos = relPos / relDist
                     v = v + deltaV*unitPos
@@ -250,26 +255,12 @@ class Object:
         if indx is not None and time is not None:
             raise ValueError("Either indx argument or time argument must be none, both cannot be given")
 
-        r = []
-        v = []
         if time is not None:
             ##TODO: Generalize for position closest to given time (if time is not in trajectory)
-            entry = self.trajectory.loc[self.trajectory['Times'] == time]
+            indx = self.trajectoryTimes.index(time)
 
-            if len(entry) == 0:
-                return r, v
-
-            row = entry.iloc[0]
-            r = [row['Posx'], row['Posy'],
-                 row['Posz']]
-            v = [row['Velx'], row['Vely'],
-                 row['Velz']]
-
-        if indx is not None:
-            r = [self.trajectory.iloc[indx]['Posx'], self.trajectory.iloc[indx]['Posy'],
-                 self.trajectory.iloc[indx]['Posz']]
-            v = [self.trajectory.iloc[indx]['Velx'], self.trajectory.iloc[indx]['Vely'],
-                 self.trajectory.iloc[indx]['Velz']]
+        r = self.trajectoryPos[indx,:].tolist()
+        v = self.trajectoryVeloc[indx,:].tolist()
 
         return r, v
 
@@ -359,17 +350,17 @@ class Laser(Object):
                     delta2 = (time - beforeTime).total_seconds()
                     nrgUsed2 = self.laserPower*beforeRow['Duration']
 
-                    return self.ready(nrgUsed1, delta1) and self.ready(nrgUsed2, delta2)
+                    return self._ready(nrgUsed1, delta1) and self._ready(nrgUsed2, delta2)
 
                 else:
                     delta = (afterTime - time).total_seconds()
                     nrgUsed = self.laserPower*duration
 
-            return self.ready(nrgUsed, delta)
+            return self._ready(nrgUsed, delta)
 
         return True
 
-    def ready(self, nrgUsed, delta):
+    def _ready(self, nrgUsed, delta):
         """
         Given energy used and the elapsed time, calculate if the energy has been re-charged
 

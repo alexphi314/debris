@@ -157,22 +157,29 @@ class Test_generate_trajectory(unittest.TestCase):
         self.vectors_equal(r, rout)
         self.vectors_equal(v, vout)
 
-        ## Test TEME trajectory
-        obj.generate_trajectory(startTime, endTime, steps, matlabLock)
-        self.assertEqual(obj.trajectory.iloc[0]['Times'], startTime)
-        self.assertEqual(obj.trajectory.iloc[-1]['Times'], endTime)
-        self.assertEqual(len(obj.trajectory['Times']), 25)
-
-        r, v = obj.get_teme_state(startTime)
+        midTime = startTime + dt.timedelta(hours=12)
+        midIndx = 12
+        r, v = obj.get_teme_state(midTime)
         r = r.tolist()[0]
         v = v.tolist()[0]
-        rout, vout = obj.parse_trajectory(indx=0)
-        self.vectors_equal(r,rout)
-        self.vectors_equal(v,vout)
+        rout, vout = obj.parse_trajectory(indx=midIndx)
+        self.vectors_equal(r, rout)
+        self.vectors_equal(v, vout)
 
-        rout, vout = obj.parse_trajectory(time=startTime)
-        self.vectors_equal(r,rout)
-        self.vectors_equal(v,vout)
+        rout, vout = obj.parse_trajectory(time=midTime)
+        self.vectors_equal(r, rout)
+        self.vectors_equal(v, vout)
+
+        r, v = obj.get_teme_state(endTime)
+        r = r.tolist()[0]
+        v = v.tolist()[0]
+        rout, vout = obj.parse_trajectory(indx=24)
+        self.vectors_equal(r, rout)
+        self.vectors_equal(v, vout)
+
+        rout, vout = obj.parse_trajectory(time=endTime)
+        self.vectors_equal(r, rout)
+        self.vectors_equal(v, vout)
 
     def vectors_equal(self,test, true):
         self.assertEqual(len(test), 3)
