@@ -196,8 +196,11 @@ class Object:
                 relDist = np.linalg.norm(relPos)
                 fireDuration = 60 #sec
 
+                dot = np.dot(v, relPos)
+                theta = math.acos(dot/np.linalg.norm(relPos)/np.linalg.norm(v))
+
                 if relDist < laserObject.range and laserObject.is_ready(time, fireDuration) \
-                        and platform.system() == 'Windows':
+                        and theta >= math.pi/2 and platform.system() == 'Windows':
                     print('Firing laser on {} ({}) at {}'.format(
                         self.satName, self.satNum, time.strftime('%Y-%m-%d %H:%M:%S'))
                     )
