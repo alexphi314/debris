@@ -165,6 +165,7 @@ class Test_generate_trajectory(unittest.TestCase):
         rout, vout = obj.parse_trajectory(indx=midIndx)
         self.vectors_equal(r, rout)
         self.vectors_equal(v, vout)
+        self.assertEqual(obj.trajectoryTimes[midIndx],midTime)
 
         rout, vout = obj.parse_trajectory(time=midTime)
         self.vectors_equal(r, rout)

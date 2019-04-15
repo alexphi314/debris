@@ -162,7 +162,7 @@ class Object:
 
         return r_eci.T, v_eci.T
 
-    def generate_trajectory(self, startTime, endTime, steps, matlabLock, laserObject = None):
+    def generate_trajectory(self, startTime, endTime, steps, matlabLock, laserLock, laserObject = None):
         """
         Generate a trajectory between startTime and endTime in interval time steps
 
@@ -170,6 +170,7 @@ class Object:
         :param datetime.datetime endTime: end of trajectory (inclusive)
         :param int steps: number of time steps between trajectory points
         :param threading.RLock matlabLock: lock to ensure one thread calls MATLAB at a time
+        :param laserLock.RLock laserLock: lock to ensure laser firings don't overlap when they shouldn't
         :param Laser laserObject: laser object in orbit OPTIONAL
         :return: define pandas.DataFrame self.trajectory
         """
@@ -197,21 +198,26 @@ class Object:
                 fireDuration = 60 #sec
 
                 dot = np.dot(v, relPos)
-                theta = math.acos(dot/np.linalg.norm(relPos)/np.linalg.norm(v))
+                theta = math.acos(dot/relDist/np.linalg.norm(v))
 
-                if relDist < laserObject.range and laserObject.is_ready(time, fireDuration) \
-                        and theta >= math.pi/2 and platform.system() == 'Windows':
-                    print('Firing laser on {} ({}) at {}'.format(
-                        self.satName, self.satNum, time.strftime('%Y-%m-%d %H:%M:%S'))
-                    )
-                    deltaV = laserObject.fire(time, time+dt.timedelta(seconds=fireDuration), self)
-                    unitPos = relPos / relDist
-                    v = v + deltaV*unitPos
+                if relDist < laserObject.range and theta >= math.pi/2 and platform.system() == 'Windows':
+                    fired = False
+                    with laserLock:
+                        if laserObject.is_ready(time, fireDuration):
+                            print('Firing laser on {} ({}) at {}'.format(
+                                self.satName, self.satNum, time.strftime('%Y-%m-%d %H:%M:%S'))
+                            )
+                            deltaV = laserObject.fire(time, time+dt.timedelta(seconds=fireDuration), self)
+                            fired = True
 
-                    r_ECI, v_ECI = teme2eci(r.T, v.T, time, delta_at, matlabLock)
+                    if fired:
+                        unitPos = relPos / relDist
+                        v = v + deltaV*unitPos
 
-                    self.tle = self.update_tle(r_ECI.T, v_ECI.T, matlabLock, time)
-                    self.parse_tle()
+                        r_ECI, v_ECI = teme2eci(r.T, v.T, time, delta_at, matlabLock)
+
+                        self.tle = self.update_tle(r_ECI.T, v_ECI.T, matlabLock, time)
+                        self.parse_tle()
 
             self.trajectoryTimes.append(time)
             self.trajectoryPos[indx,:] = r
@@ -307,7 +313,6 @@ class Laser(Object):
         if deb not in self._fireObjs:
             self._fireObjs.append(deb)
 
-        #TODO: Account for angle of laser -> don't fire if bad angle
         deltaV = self.deltaV_persec * (endTime - startTime).total_seconds()
 
         return deltaV

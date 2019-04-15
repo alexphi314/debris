@@ -47,6 +47,7 @@ class Simulator:
         self.durationALock = threading.Lock()
         self.matlabLock = threading.RLock()
         self.decayedALock = threading.Lock()
+        self.laserLock = threading.RLock()
 
     def setLaser(self, laser):
         """
@@ -60,7 +61,7 @@ class Simulator:
 
 
         self.laserObject = laser
-        self.laserObject.generate_trajectory(self.startTime, self.endTime, self.steps, self.matlabLock)
+        self.laserObject.generate_trajectory(self.startTime, self.endTime, self.steps, self.matlabLock, self.laserLock)
 
         ## Define laser pass variables
         self._laserPasses = pd.DataFrame([], columns=self.dfCols)
@@ -75,7 +76,8 @@ class Simulator:
         while True:
             try:
                 obj = self.trajQueue.get()
-                obj.generate_trajectory(self.startTime, self.endTime, self.steps, self.matlabLock, self.laserObject)
+                obj.generate_trajectory(self.startTime, self.endTime, self.steps, self.matlabLock, self.laserLock,
+                                        self.laserObject)
                 #self.message('Trajectory generated for {}'.format(obj.satName))
             except PropagationError as e:
                 self.message('Got Propagation Error {}: {}'.format(e.num, e.msg))
@@ -243,7 +245,7 @@ if __name__ == "__main__":
     print('Starting sim...')
     print('Running with {} pieces of debris and {} sats'.format(len(deb), len(sats)))
     objects = deb + sats
-    numDays = 7
+    numDays = 14
     startTime = dt.datetime(2019,3,27,17,00,00)
     endTime = startTime + dt.timedelta(days=numDays)
     steps = numDays*6*24
@@ -437,6 +439,7 @@ if __name__ == "__main__":
     net_delta_as = []
     net_delta_is = []
 
+    print('Fired laser on {} pieces of debris'.format(len(simulator.laserObject.get_fire_objs())))
     for obj in simulator.laserObject.get_fire_objs():
         for i in range(1,len(obj.a_s)):
             deltaA = obj.a_s[i] - obj.a_s[i-1]
