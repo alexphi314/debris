@@ -434,6 +434,8 @@ if __name__ == "__main__":
 
     delta_as = []
     delta_is = []
+    net_delta_as = []
+    net_delta_is = []
 
     for obj in simulator.laserObject.get_fire_objs():
         for i in range(1,len(obj.a_s)):
@@ -444,11 +446,18 @@ if __name__ == "__main__":
             deltaI = obj.i_s[i] - obj.i_s[i-1]
             delta_is.append(math.degrees(deltaI))
 
-    p9 = figure(title='Orbit Changes', x_axis_label='Change in Semi-Major Axis [m]',
+        net_delta_as.append(obj.a_s[-1]-obj.a_s[0])
+        net_delta_is.append(obj.i_s[-1]-obj.i_s[0])
+
+    p9 = figure(title='Change in Debris Orbit', x_axis_label='Change in Semi-Major Axis [m]',
                 y_axis_label='Change in Inclination [deg]')
     p9.scatter(x=delta_as,y=delta_is)
 
-    grid = gridplot([[p6,p9]])
+    p10 = figure(title='Net Change in Debris Orbit', x_axis_label='Change in Semi-Major Axis [m]',
+                y_axis_label='Change in Inclination [deg]')
+    p10.scatter(x=net_delta_as, y=net_delta_is)
+
+    grid = gridplot([[p6],[p9,p10]])
     show(grid)
 
     uniq_x, uniq_y = get_bounds(uniq, np_alt, np_inc)
