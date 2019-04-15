@@ -195,7 +195,7 @@ class Object:
                 fireDuration = 60 #sec
 
                 if relDist < laserObject.range and laserObject.is_ready(time, fireDuration):
-                    print('Firing laser on {} at {}'.format(self.satName, time.strftime('%Y-%m-%d %H:%M:%S')))
+                    print('Firing laser on {} ({}) at {}'.format(self.satName, self.satNum, time.strftime('%Y-%m-%d %H:%M:%S')))
                     deltaV = laserObject.fire(time, time+dt.timedelta(seconds=fireDuration), self)
                     unitPos = relPos / relDist
                     v = v + deltaV*unitPos
