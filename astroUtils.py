@@ -195,7 +195,7 @@ class Object:
 
                 relPos = (r - np.array(laserPos))[0]
                 relDist = np.linalg.norm(relPos)
-                fireDuration = 60 #sec
+                fireDuration = 120 #sec
 
                 dot = np.dot(v, relPos)
                 theta = math.acos(dot/relDist/np.linalg.norm(v))
@@ -277,10 +277,11 @@ class Laser(Object):
     """
     Object class specifically for a Laser
     """
-    chargingRate = 380.75 #W
+    chargeTime = 7730.8108 #sec
     laserPower = 32.3e3 #kW
     range = 100e3
     deltaV_persec = 0.4  # m/s
+    duration = 120 #sec
     def __init__(self, obj, enable):
         """
         Init class
@@ -328,6 +329,8 @@ class Laser(Object):
         if not self.enable:
             return False
 
+        assert duration == self.duration #laser charge time based on fixed fire duration
+
         if len(self._fireTimes) != 0:
             relTimes = np.array([(self._fireTimes.iloc[i]['Start'] - time).total_seconds()
                         for i in range(0,len(self._fireTimes))])
@@ -343,7 +346,6 @@ class Laser(Object):
                 beforeRow = self._fireTimes.iloc[changeOver]
                 beforeTime = beforeRow['End']
                 delta = (beforeTime - time).total_seconds()
-                nrgUsed = self.laserPower * beforeRow['Duration']
             else:
                 changeOver = indices[0][0]
 
@@ -353,32 +355,26 @@ class Laser(Object):
                     beforeTime = beforeRow['End']
 
                     delta1 = (afterTime - time).total_seconds()
-                    nrgUsed1 = self.laserPower*duration
-
                     delta2 = (time - beforeTime).total_seconds()
-                    nrgUsed2 = self.laserPower*beforeRow['Duration']
 
-                    return self._ready(nrgUsed1, delta1) and self._ready(nrgUsed2, delta2)
+                    return self._ready(delta1) and self._ready(delta2)
 
                 else:
                     delta = (afterTime - time).total_seconds()
-                    nrgUsed = self.laserPower*duration
 
-            return self._ready(nrgUsed, delta)
+            return self._ready(delta)
 
         return True
 
-    def _ready(self, nrgUsed, delta):
+    def _ready(self, delta):
         """
         Given energy used and the elapsed time, calculate if the energy has been re-charged
 
-        :param float nrgUsed: energy used in the last pulse
         :param float delta: elapsed time in seconds
         :return: bool ready: True if laser is ready to fire again
         """
         ## TODO: Better account for time in eclipse
-        chargeTime = nrgUsed / self.chargingRate * 2 #multiply by 2 to account for time in eclipse, on average
-        if chargeTime > abs(delta):
+        if self.chargeTime > abs(delta):
             return False
 
         return True
