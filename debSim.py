@@ -436,8 +436,10 @@ if __name__ == "__main__":
 
     delta_as = []
     delta_is = []
+    delta_es = []
     net_delta_as = []
     net_delta_is = []
+    net_delta_es = []
 
     print('Fired laser on {} pieces of debris'.format(len(simulator.laserObject.get_fire_objs())))
     for obj in simulator.laserObject.get_fire_objs():
@@ -449,8 +451,13 @@ if __name__ == "__main__":
             deltaI = obj.i_s[i] - obj.i_s[i-1]
             delta_is.append(math.degrees(deltaI))
 
+        for i in range(1,len(obj.e_s)):
+            deltae = obj.e_s[i] - obj.e_s[i-1]
+            delta_es.append(deltae)
+
         net_delta_as.append(obj.a_s[-1]-obj.a_s[0])
         net_delta_is.append(obj.i_s[-1]-obj.i_s[0])
+        net_delta_es.append(obj.e_s[-1]-obj.e_s[0])
 
     p9 = figure(title='Change in Debris Orbit', x_axis_label='Change in Semi-Major Axis [m]',
                 y_axis_label='Change in Inclination [deg]')
@@ -460,7 +467,15 @@ if __name__ == "__main__":
                 y_axis_label='Change in Inclination [deg]')
     p10.scatter(x=net_delta_as, y=net_delta_is)
 
-    grid = gridplot([[p6],[p9,p10]])
+    p11 = figure(title='Eccentricity vs. Semi-Major Axis Change', x_axis_label='Change in Semi-Major Axis [m]',
+                 y_axis_label='Change in Eccentricity')
+    p11.scatter(x=delta_as, y=delta_es)
+
+    p12 = figure(title='Eccentricity vs. Semi-Major Axis Change', x_axis_label='Change in Semi-Major Axis [m]',
+                 y_axis_label='Change in Eccentricity')
+    p12.scatter(x=net_delta_as, y=net_delta_es)
+
+    grid = gridplot([[p6],[p9,p10],[p11,p12]])
     show(grid)
 
     uniq_x, uniq_y = get_bounds(uniq, np_alt, np_inc)

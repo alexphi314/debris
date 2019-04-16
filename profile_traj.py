@@ -66,16 +66,21 @@ if __name__ == '__main__':
     assert obj != laser
 
     matlabLock = threading.RLock()
+    laserLock = threading.RLock()
     startTime = dt.datetime(2019,4,4,17,00,00)
     endTime = dt.datetime(2019,4,11,17,00,00)
     steps = 7*24
 
-    laser.generate_trajectory(startTime,endTime,steps,matlabLock)
+    laser.generate_trajectory(startTime,endTime,steps,matlabLock,laserLock)
 
     p = cProfile.Profile()
-    p.run('obj.generate_trajectory(startTime,endTime,steps,matlabLock,laser)')
+    p.run('obj.generate_trajectory(startTime,endTime,steps,matlabLock,laserLock,laser)')
     stats = pstats.Stats(p)
     stats.sort_stats('cumulative')
     stats.print_stats('astroUtils')
+
+    for indx,obj in enumerate(objects):
+        if obj.satNum == 43689:
+            print('Laser period: {} min'.format(obj.T/60))
 
 

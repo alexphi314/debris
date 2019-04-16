@@ -59,6 +59,7 @@ class Object:
 
         self.a_s = []
         self.i_s = []
+        self.e_s = []
 
         self.tle = tle_str
         self.parse_tle()
@@ -94,6 +95,7 @@ class Object:
         self.M = math.radians(float(line2[43:51]))
         self.n = float(line2[52:63]) * 2 * math.pi / 86400  # rad/s
         self.a = math.pow(MEW / math.pow(self.n, 2), float(1 / 3))  # m
+        self.T = 2*math.pi*math.pow(self.a,1.5)/math.sqrt(MEW) #sec
 
         ## Calculate TLE epoch time
         if int(epoch_year) > int(dt.datetime.now().strftime('%y')):
@@ -129,6 +131,7 @@ class Object:
 
         self.a_s.append(self.a)
         self.i_s.append(self.i)
+        self.e_s.append(self.e)
 
     def get_teme_state(self, time):
         """
