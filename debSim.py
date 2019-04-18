@@ -456,7 +456,7 @@ if __name__ == "__main__":
             delta_es.append(deltae)
 
         net_delta_as.append(obj.a_s[-1]-obj.a_s[0])
-        net_delta_is.append(obj.i_s[-1]-obj.i_s[0])
+        net_delta_is.append(math.degrees(obj.i_s[-1]-obj.i_s[0]))
         net_delta_es.append(obj.e_s[-1]-obj.e_s[0])
 
     p9 = figure(title='Change in Debris Orbit', x_axis_label='Change in Semi-Major Axis [m]',
