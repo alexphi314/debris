@@ -444,7 +444,7 @@ if __name__ == "__main__":
     print('Fired laser on {} pieces of debris'.format(len(simulator.laserObject.get_fire_objs())))
     for obj in simulator.laserObject.get_fire_objs():
         for i in range(1,len(obj.a_s)):
-            deltaA = obj.a_s[i] - obj.a_s[i-1]
+            deltaA = (obj.a_s[i] - obj.a_s[i-1])/1000 #km
             delta_as.append(deltaA)
 
         for i in range(1,len(obj.i_s)):
@@ -455,23 +455,23 @@ if __name__ == "__main__":
             deltae = obj.e_s[i] - obj.e_s[i-1]
             delta_es.append(deltae)
 
-        net_delta_as.append(obj.a_s[-1]-obj.a_s[0])
+        net_delta_as.append((obj.a_s[-1]-obj.a_s[0])/1000) #km
         net_delta_is.append(math.degrees(obj.i_s[-1]-obj.i_s[0]))
         net_delta_es.append(obj.e_s[-1]-obj.e_s[0])
 
-    p9 = figure(title='Change in Debris Orbit', x_axis_label='Change in Semi-Major Axis [m]',
+    p9 = figure(title='Change in Debris Orbit', x_axis_label='Change in Semi-Major Axis [km]',
                 y_axis_label='Change in Inclination [deg]')
     p9.scatter(x=delta_as,y=delta_is)
 
-    p10 = figure(title='Net Change in Debris Orbit', x_axis_label='Change in Semi-Major Axis [m]',
+    p10 = figure(title='Net Change in Debris Orbit', x_axis_label='Change in Semi-Major Axis [km]',
                 y_axis_label='Change in Inclination [deg]')
     p10.scatter(x=net_delta_as, y=net_delta_is)
 
-    p11 = figure(title='Eccentricity vs. Semi-Major Axis Change', x_axis_label='Change in Semi-Major Axis [m]',
+    p11 = figure(title='Eccentricity vs. Semi-Major Axis Change', x_axis_label='Change in Semi-Major Axis [km]',
                  y_axis_label='Change in Eccentricity')
     p11.scatter(x=delta_as, y=delta_es)
 
-    p12 = figure(title='Eccentricity vs. Semi-Major Axis Change', x_axis_label='Change in Semi-Major Axis [m]',
+    p12 = figure(title='Eccentricity vs. Semi-Major Axis Change', x_axis_label='Change in Semi-Major Axis [km]',
                  y_axis_label='Change in Eccentricity')
     p12.scatter(x=net_delta_as, y=net_delta_es)
 
